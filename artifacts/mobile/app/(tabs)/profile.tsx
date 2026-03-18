@@ -2,7 +2,6 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React from "react";
 import {
-  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -12,20 +11,21 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { useToast } from "@/components/Toast";
 import { useAuth } from "@/context/AuthContext";
 import { useWardrobe } from "@/context/WardrobeContext";
 
-function MenuItem({ icon, label, onPress }: { icon: string; label: string; onPress?: () => void }) {
+function MenuItem({ icon, label, onPress, destructive }: { icon: string; label: string; onPress?: () => void; destructive?: boolean }) {
   return (
     <Pressable
       style={({ pressed }) => [styles.menuItem, { opacity: pressed ? 0.7 : 1 }]}
       onPress={onPress}
     >
       <View style={styles.menuItemLeft}>
-        <View style={styles.menuItemIcon}>
-          <Feather name={icon as never} size={18} color={Colors.primary} />
+        <View style={[styles.menuItemIcon, destructive && styles.menuItemIconDestructive]}>
+          <Feather name={icon as never} size={18} color={destructive ? "#EF4444" : Colors.primary} />
         </View>
-        <Text style={styles.menuItemLabel}>{label}</Text>
+        <Text style={[styles.menuItemLabel, destructive && styles.menuItemLabelDestructive]}>{label}</Text>
       </View>
       <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
     </Pressable>
@@ -36,22 +36,22 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const { items } = useWardrobe();
+  const toast = useToast();
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 84 : insets.bottom + 60;
 
   const handleLogout = () => {
-    Alert.alert("Log Out", "Are you sure you want to log out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Log Out",
-        style: "destructive",
-        onPress: async () => {
-          await logout();
-          router.replace("/onboarding");
-        },
-      },
-    ]);
+    toast.warning("Tap again to confirm log out");
+    setTimeout(async () => {
+      await logout();
+      toast.info("You have been logged out");
+      router.replace("/onboarding");
+    }, 1500);
+  };
+
+  const handleComingSoon = (feature: string) => {
+    toast.info(`${feature} coming soon!`);
   };
 
   const initials = user?.fullName
@@ -68,7 +68,7 @@ export default function ProfileScreen() {
           <Ionicons name="chevron-back" size={24} color={Colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Profile</Text>
-        <Pressable>
+        <Pressable onPress={() => handleComingSoon("Settings")}>
           <Feather name="settings" size={22} color={Colors.text} />
         </Pressable>
       </View>
@@ -79,9 +79,12 @@ export default function ProfileScreen() {
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{initials}</Text>
             </View>
-            <View style={styles.editBadge}>
+            <Pressable
+              style={styles.editBadge}
+              onPress={() => handleComingSoon("Profile photo editing")}
+            >
               <Feather name="edit-2" size={10} color={Colors.white} />
-            </View>
+            </Pressable>
           </View>
           <Text style={styles.userName}>{user?.fullName ?? "User"}</Text>
           <Text style={styles.userEmail}>{user?.email ?? ""}</Text>
@@ -101,33 +104,25 @@ export default function ProfileScreen() {
 
         <Text style={styles.sectionLabel}>ACCOUNT SETTINGS</Text>
         <View style={styles.menuSection}>
-          <MenuItem icon="user" label="Personal Information" />
+          <MenuItem icon="user" label="Personal Information" onPress={() => handleComingSoon("Personal information")} />
           <View style={styles.separator} />
-          <MenuItem icon="bell" label="Notifications" />
+          <MenuItem icon="bell" label="Notifications" onPress={() => handleComingSoon("Notifications")} />
         </View>
 
         <Text style={styles.sectionLabel}>STYLE PREFERENCES</Text>
         <View style={styles.menuSection}>
-          <MenuItem icon="sliders" label="Color Palette" />
+          <MenuItem icon="sliders" label="Color Palette" onPress={() => handleComingSoon("Color palette settings")} />
           <View style={styles.separator} />
-          <MenuItem
-            icon="star"
-            label="Style Preferences"
-            onPress={() => router.push("/setup/style")}
-          />
+          <MenuItem icon="star" label="Style Preferences" onPress={() => router.push("/setup/style")} />
         </View>
 
         <Text style={styles.sectionLabel}>APP</Text>
         <View style={styles.menuSection}>
-          <MenuItem icon="shield" label="Privacy & Security" />
+          <MenuItem icon="shield" label="Privacy & Security" onPress={() => handleComingSoon("Privacy & Security")} />
           <View style={styles.separator} />
-          <MenuItem icon="help-circle" label="Help & Support" />
+          <MenuItem icon="help-circle" label="Help & Support" onPress={() => handleComingSoon("Help & Support")} />
           <View style={styles.separator} />
-          <MenuItem
-            icon="award"
-            label="Upgrade to Pro"
-            onPress={() => router.push("/premium")}
-          />
+          <MenuItem icon="award" label="Upgrade to Pro" onPress={() => router.push("/premium")} />
         </View>
 
         {user?.stylePreferences && user.stylePreferences.length > 0 && (
@@ -206,7 +201,9 @@ const styles = StyleSheet.create({
     width: 36, height: 36, borderRadius: 10,
     backgroundColor: Colors.surface, alignItems: "center", justifyContent: "center",
   },
+  menuItemIconDestructive: { backgroundColor: "#FEF2F2" },
   menuItemLabel: { fontFamily: "Inter_500Medium", fontSize: 15, color: Colors.text },
+  menuItemLabelDestructive: { color: "#EF4444" },
   separator: { height: 1, backgroundColor: Colors.border, marginHorizontal: 16 },
   stylesSection: { marginBottom: 20 },
   styleChips: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 20 },

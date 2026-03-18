@@ -4,8 +4,6 @@ import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
-  FlatList,
   Image,
   Platform,
   Pressable,
@@ -16,12 +14,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { useToast } from "@/components/Toast";
 import { useWardrobe, WardrobeItem } from "@/context/WardrobeContext";
 
 const CATEGORIES = ["All", "Tops & T-shirts", "Bottoms", "Dresses", "Outerwear"];
 
 export default function TryOnScreen() {
   const insets = useSafeAreaInsets();
+  const toast = useToast();
   const { items, fetchItems, generateTryOn } = useWardrobe();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState("All");
@@ -38,10 +38,19 @@ export default function TryOnScreen() {
     }, [fetchItems])
   );
 
-  const toggleItem = (id: string) => {
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
+  const toggleItem = (item: WardrobeItem) => {
+    setSelectedIds(prev => {
+      if (prev.includes(item.id)) {
+        toast.info(`"${item.name}" deselected`);
+        return prev.filter(i => i !== item.id);
+      }
+      if (prev.length >= 5) {
+        toast.warning("You can select up to 5 items at once");
+        return prev;
+      }
+      toast.info(`"${item.name}" selected`);
+      return [...prev, item.id];
+    });
   };
 
   const pickPhoto = async () => {
@@ -55,19 +64,23 @@ export default function TryOnScreen() {
     if (!result.canceled && result.assets[0]) {
       setUserPhoto(result.assets[0].uri);
       setGeneratedImage(null);
+      toast.success("Photo uploaded! Now select items to try on.");
     }
   };
 
   const handleGenerate = async () => {
     if (!userPhoto) {
-      Alert.alert("No Photo", "Please upload your photo first");
+      toast.warning("Please upload your photo first");
       return;
     }
     if (selectedIds.length === 0) {
-      Alert.alert("No Items", "Please select at least one clothing item");
+      toast.warning("Please select at least one clothing item");
       return;
     }
+
     setIsGenerating(true);
+    toast.info("AI is generating your virtual try-on...");
+
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -77,13 +90,17 @@ export default function TryOnScreen() {
         base64: true,
       });
       const base64 = result.canceled ? null : result.assets[0]?.base64;
-      if (!base64) throw new Error("No image selected");
+      if (!base64) {
+        toast.warning("No image selected for try-on");
+        setIsGenerating(false);
+        return;
+      }
 
       const response = await generateTryOn(base64, selectedIds);
       setGeneratedImage(`data:image/png;base64,${response.imageBase64}`);
-    } catch (err) {
-      console.error("Error generating try-on:", err);
-      Alert.alert("Error", "Failed to generate outfit preview. Please try again.");
+      toast.success("Your AI outfit preview is ready!");
+    } catch {
+      toast.error("Failed to generate outfit preview. Please try again.");
     } finally {
       setIsGenerating(false);
     }
@@ -96,7 +113,10 @@ export default function TryOnScreen() {
   return (
     <View style={[styles.container, { paddingTop: topInset }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => setGeneratedImage(null)}>
+        <Pressable onPress={() => {
+          setGeneratedImage(null);
+          if (generatedImage) toast.info("Preview cleared");
+        }}>
           <Ionicons name="chevron-back" size={24} color={Colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>AI Try-On</Text>
@@ -110,11 +130,11 @@ export default function TryOnScreen() {
               <Image source={{ uri: generatedImage }} style={styles.photo} />
               <View style={styles.readyBadge}>
                 <Ionicons name="sparkles" size={12} color={Colors.white} />
-                <Text style={styles.readyBadgeText}>READY</Text>
+                <Text style={styles.readyBadgeText}>AI PREVIEW</Text>
               </View>
-              <Pressable style={styles.compareBtn}>
+              <Pressable style={styles.compareBtn} onPress={() => { setGeneratedImage(null); toast.info("Showing your original photo"); }}>
                 <Feather name="layers" size={14} color={Colors.text} />
-                <Text style={styles.compareBtnText}>Compare</Text>
+                <Text style={styles.compareBtnText}>Reset</Text>
               </Pressable>
             </>
           ) : userPhoto ? (
@@ -143,9 +163,12 @@ export default function TryOnScreen() {
         <View style={styles.selectHeader}>
           <Text style={styles.selectTitle}>Select Items</Text>
           {selectedIds.length > 0 && (
-            <View style={styles.selectedBadge}>
-              <Text style={styles.selectedBadgeText}>{selectedIds.length} Items Selected</Text>
-            </View>
+            <Pressable
+              style={styles.selectedBadge}
+              onPress={() => { setSelectedIds([]); toast.info("Selection cleared"); }}
+            >
+              <Text style={styles.selectedBadgeText}>{selectedIds.length} Selected · Clear</Text>
+            </Pressable>
           )}
         </View>
 
@@ -178,7 +201,7 @@ export default function TryOnScreen() {
                 <Pressable
                   key={item.id}
                   style={[styles.itemCard, isSelected && styles.itemCardSelected]}
-                  onPress={() => toggleItem(item.id)}
+                  onPress={() => toggleItem(item)}
                 >
                   {item.imageUrl ? (
                     <Image source={{ uri: item.imageUrl }} style={styles.itemImg} />
@@ -211,7 +234,7 @@ export default function TryOnScreen() {
           {isGenerating ? (
             <>
               <ActivityIndicator size="small" color={Colors.white} />
-              <Text style={styles.generateBtnText}>Generating...</Text>
+              <Text style={styles.generateBtnText}>Generating Preview...</Text>
             </>
           ) : (
             <>
@@ -299,10 +322,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white, alignItems: "center", justifyContent: "center",
     borderWidth: 1.5, borderColor: Colors.primary,
   },
-  uploadCard: {
-    alignItems: "center", justifyContent: "center", gap: 4,
-    backgroundColor: Colors.surface, borderStyle: "dashed",
-  },
+  uploadCard: { alignItems: "center", justifyContent: "center", gap: 4, backgroundColor: Colors.surface, borderStyle: "dashed" },
   uploadCardText: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: Colors.textSecondary, letterSpacing: 0.5 },
   emptyItems: { alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 32 },
   emptyItemsText: { fontFamily: "Inter_500Medium", fontSize: 14, color: Colors.textSecondary },

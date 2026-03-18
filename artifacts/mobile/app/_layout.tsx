@@ -14,6 +14,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ToastProvider } from "@/components/Toast";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { WardrobeProvider } from "@/context/WardrobeContext";
 
@@ -77,7 +78,9 @@ export default function RootLayout() {
             <WardrobeProvider>
               <GestureHandlerRootView style={{ flex: 1 }}>
                 <KeyboardProvider>
-                  <RootLayoutNav />
+                  <ToastProvider>
+                    <RootLayoutNav />
+                  </ToastProvider>
                 </KeyboardProvider>
               </GestureHandlerRootView>
             </WardrobeProvider>

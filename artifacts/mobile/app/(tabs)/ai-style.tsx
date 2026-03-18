@@ -13,10 +13,25 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
-import { useWardrobe, OutfitRecommendation, WardrobeItem } from "@/context/WardrobeContext";
+import { useToast } from "@/components/Toast";
+import { useWardrobe, OutfitRecommendation } from "@/context/WardrobeContext";
 
 function OutfitCard({ outfit, isMain }: { outfit: OutfitRecommendation; isMain?: boolean }) {
+  const toast = useToast();
   const [liked, setLiked] = useState(false);
+
+  const handleLike = () => {
+    setLiked(prev => {
+      const next = !prev;
+      toast.success(next ? "Outfit saved to favorites!" : "Removed from favorites");
+      return next;
+    });
+  };
+
+  const handleWear = () => {
+    toast.success(`"${outfit.name}" marked as today's outfit!`);
+  };
+
   if (isMain) {
     return (
       <View style={styles.mainCard}>
@@ -42,7 +57,7 @@ function OutfitCard({ outfit, isMain }: { outfit: OutfitRecommendation; isMain?:
             </View>
           </View>
         </View>
-        <Pressable style={styles.wearBtn}>
+        <Pressable style={styles.wearBtn} onPress={handleWear}>
           <MaterialCommunityIcons name="hanger" size={18} color={Colors.white} />
           <Text style={styles.wearBtnText}>Wear Today</Text>
         </Pressable>
@@ -60,7 +75,7 @@ function OutfitCard({ outfit, isMain }: { outfit: OutfitRecommendation; isMain?:
             <MaterialCommunityIcons name="hanger" size={30} color={Colors.border} />
           </View>
         )}
-        <Pressable style={styles.heartBtn} onPress={() => setLiked(!liked)}>
+        <Pressable style={styles.heartBtn} onPress={handleLike}>
           <Ionicons name={liked ? "heart" : "heart-outline"} size={18} color={liked ? "#EF4444" : Colors.white} />
         </Pressable>
       </View>
@@ -72,6 +87,7 @@ function OutfitCard({ outfit, isMain }: { outfit: OutfitRecommendation; isMain?:
 
 export default function AIStyleScreen() {
   const insets = useSafeAreaInsets();
+  const toast = useToast();
   const { items, fetchItems, recommendOutfits } = useWardrobe();
   const [outfits, setOutfits] = useState<OutfitRecommendation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -95,8 +111,13 @@ export default function AIStyleScreen() {
       const results = await recommendOutfits();
       setOutfits(results);
       setHasLoaded(true);
-    } catch (err) {
-      console.error("Error loading recommendations:", err);
+      if (results.length > 0) {
+        toast.success(`${results.length} outfit suggestions ready!`);
+      } else {
+        toast.info("Add more items to your wardrobe for personalized suggestions");
+      }
+    } catch {
+      toast.error("Failed to load recommendations. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -112,7 +133,7 @@ export default function AIStyleScreen() {
           <Feather name="menu" size={22} color={Colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Daily Recommendations</Text>
-        <Pressable>
+        <Pressable onPress={() => toast.info("Notifications coming soon!")}>
           <View style={styles.notifBtn}>
             <Ionicons name="notifications-outline" size={22} color={Colors.text} />
           </View>
@@ -128,7 +149,7 @@ export default function AIStyleScreen() {
             <Text style={styles.weatherTip}>Perfect for light layers and cotton fabrics.</Text>
           </View>
         </View>
-        <Pressable style={styles.weatherDetailBtn}>
+        <Pressable style={styles.weatherDetailBtn} onPress={() => toast.info("Weather details coming soon!")}>
           <Text style={styles.weatherDetailText}>Details</Text>
         </Pressable>
       </View>
@@ -144,14 +165,11 @@ export default function AIStyleScreen() {
           <Text style={styles.emptyTitle}>No recommendations yet</Text>
           <Text style={styles.emptySub}>Add items to your wardrobe to get personalized outfit suggestions</Text>
           <Pressable style={styles.refreshBtn} onPress={loadRecommendations}>
-            <Text style={styles.refreshBtnText}>Refresh</Text>
+            <Text style={styles.refreshBtnText}>Generate Suggestions</Text>
           </Pressable>
         </View>
       ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: bottomInset }}
-        >
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: bottomInset }}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Today&apos;s Pick</Text>
             <View style={styles.matchBadge}>
@@ -165,7 +183,7 @@ export default function AIStyleScreen() {
             <>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Other Suggestions</Text>
-                <Pressable>
+                <Pressable onPress={() => toast.info("More outfits coming soon!")}>
                   <Text style={styles.viewAll}>View All</Text>
                 </Pressable>
               </View>
@@ -201,10 +219,7 @@ const styles = StyleSheet.create({
   weatherTemp: { fontFamily: "Inter_700Bold", fontSize: 22, color: Colors.white },
   weatherDesc: { fontFamily: "Inter_500Medium", fontSize: 13, color: "rgba(255,255,255,0.8)" },
   weatherTip: { fontFamily: "Inter_400Regular", fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 4, maxWidth: 200 },
-  weatherDetailBtn: {
-    backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 7,
-  },
+  weatherDetailBtn: { backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7 },
   weatherDetailText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: Colors.white },
   sectionHeader: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",

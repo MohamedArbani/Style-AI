@@ -4,7 +4,6 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -17,6 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { useToast } from "@/components/Toast";
 import { useWardrobe } from "@/context/WardrobeContext";
 
 const CATEGORIES = ["Tops & T-shirts", "Shirts", "Jackets & Coats", "Bottoms", "Dresses", "Shoes", "Accessories", "Sportswear", "Outerwear"];
@@ -39,6 +39,7 @@ const COLORS_LIST = [
 export default function AddItemScreen() {
   const insets = useSafeAreaInsets();
   const { addItem, scanItem } = useWardrobe();
+  const toast = useToast();
 
   const [name, setName] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
@@ -59,48 +60,65 @@ export default function AddItemScreen() {
   const pickImage = async (fromCamera = false) => {
     let result;
     if (fromCamera) {
-      result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true, aspect: [1, 1], quality: 0.8, base64: true,
-      });
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        toast.warning("Camera access is required to take photos");
+        return;
+      }
+      result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8, base64: true });
     } else {
-      result = await ImagePicker.launchImageLibraryAsync({
-        allowsEditing: true, aspect: [1, 1], quality: 0.8, base64: true,
-      });
+      result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8, base64: true });
     }
     if (!result.canceled && result.assets[0]) {
       setImageUri(result.assets[0].uri);
       setImageBase64(result.assets[0].base64 ?? null);
+      toast.info("Photo added! Tap 'AI Scan Details' to auto-fill the form.");
     }
+  };
+
+  const showImagePicker = () => {
+    if (Platform.OS === "web") {
+      pickImage(false);
+      return;
+    }
+    toast.info("Choose an option");
+    setTimeout(() => pickImage(false), 300);
   };
 
   const handleScan = async () => {
     if (!imageBase64) {
-      Alert.alert("No Image", "Please add a photo first");
+      toast.warning("Please add a photo first to use AI scan");
       return;
     }
     setIsScanning(true);
     try {
       const result = await scanItem(imageBase64);
-      if (result.name) setName(result.name);
-      if (result.category) setCategory(result.category);
-      if (result.color) setColor(result.color);
-      if (result.season) setSeason(result.season);
-      if (result.tags) setTags(result.tags);
+      let filled = 0;
+      if (result.name) { setName(result.name); filled++; }
+      if (result.category) { setCategory(result.category); filled++; }
+      if (result.color) { setColor(result.color); filled++; }
+      if (result.season) { setSeason(result.season); filled++; }
+      if (result.tags) { setTags(result.tags); filled++; }
+      toast.success(`AI filled in ${filled} field${filled !== 1 ? "s" : ""} automatically`);
     } catch {
-      Alert.alert("Error", "Failed to scan item");
+      toast.error("AI scan failed. Please fill in the details manually.");
     } finally {
       setIsScanning(false);
     }
   };
 
   const handleSave = async () => {
-    if (!name) { Alert.alert("Missing", "Please enter a name for the item"); return; }
+    if (!name.trim()) {
+      toast.warning("Please enter a name for this item");
+      return;
+    }
     setIsSaving(true);
     try {
-      await addItem({ name, category, color, season, brand, notes, tags, imageUrl: imageUri ?? undefined });
+      await addItem({ name: name.trim(), category, color, season, brand, notes, tags, imageUrl: imageUri ?? undefined });
+      toast.success(`"${name}" added to your wardrobe!`);
       router.back();
     } catch {
-      Alert.alert("Error", "Failed to save item");
+      toast.error("Failed to save item. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -128,25 +146,11 @@ export default function AddItemScreen() {
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          <Pressable
-            style={styles.imageWrap}
-            onPress={() => Alert.alert("Add Photo", "", [
-              { text: "Camera", onPress: () => pickImage(true) },
-              { text: "Library", onPress: () => pickImage(false) },
-              { text: "Cancel", style: "cancel" },
-            ])}
-          >
+          <Pressable style={styles.imageWrap} onPress={showImagePicker}>
             {imageUri ? (
               <>
                 <Image source={{ uri: imageUri }} style={styles.image} />
-                <Pressable
-                  style={styles.cameraBtn}
-                  onPress={() => Alert.alert("Change Photo", "", [
-                    { text: "Camera", onPress: () => pickImage(true) },
-                    { text: "Library", onPress: () => pickImage(false) },
-                    { text: "Cancel", style: "cancel" },
-                  ])}
-                >
+                <Pressable style={styles.cameraBtn} onPress={showImagePicker}>
                   <Ionicons name="camera" size={18} color={Colors.white} />
                 </Pressable>
               </>
@@ -168,7 +172,7 @@ export default function AddItemScreen() {
             ) : (
               <Ionicons name="sparkles" size={16} color={Colors.primary} />
             )}
-            <Text style={styles.scanBtnText}>{isScanning ? "Scanning..." : "AI Scan Details"}</Text>
+            <Text style={styles.scanBtnText}>{isScanning ? "Scanning with AI..." : "AI Scan Details"}</Text>
           </Pressable>
 
           {tags.length > 0 && (
@@ -179,16 +183,15 @@ export default function AddItemScreen() {
                   <Pressable
                     key={i}
                     style={styles.tag}
-                    onPress={() => setTags(prev => prev.filter((_, idx) => idx !== i))}
+                    onPress={() => {
+                      setTags(prev => prev.filter((_, idx) => idx !== i));
+                      toast.info(`Tag "${tag}" removed`);
+                    }}
                   >
                     <Text style={styles.tagText}>{tag}</Text>
-                    <Ionicons name="checkmark" size={12} color={Colors.primary} />
+                    <Ionicons name="close" size={12} color={Colors.textSecondary} />
                   </Pressable>
                 ))}
-                <Pressable style={styles.addTagBtn}>
-                  <Ionicons name="add" size={14} color={Colors.primary} />
-                  <Text style={styles.addTagText}>Add Tag</Text>
-                </Pressable>
               </View>
             </View>
           )}
@@ -205,11 +208,11 @@ export default function AddItemScreen() {
               />
             </View>
 
-            <View style={styles.field}>
+            <View style={[styles.field, { zIndex: 20 }]}>
               <Text style={styles.fieldLabel}>Category</Text>
-              <Pressable style={styles.select} onPress={() => setShowCatPicker(!showCatPicker)}>
+              <Pressable style={styles.select} onPress={() => { setShowCatPicker(!showCatPicker); setShowSeasonPicker(false); }}>
                 <Text style={styles.selectText}>{category}</Text>
-                <Ionicons name="chevron-down" size={18} color={Colors.textSecondary} />
+                <Ionicons name={showCatPicker ? "chevron-up" : "chevron-down"} size={18} color={Colors.textSecondary} />
               </Pressable>
               {showCatPicker && (
                 <View style={styles.dropdown}>
@@ -220,53 +223,53 @@ export default function AddItemScreen() {
                       onPress={() => { setCategory(cat); setShowCatPicker(false); }}
                     >
                       <Text style={[styles.dropdownItemText, cat === category && styles.dropdownItemTextActive]}>{cat}</Text>
+                      {cat === category && <Ionicons name="checkmark" size={16} color={Colors.primary} />}
                     </Pressable>
                   ))}
                 </View>
               )}
             </View>
 
-            <View style={styles.row}>
-              <View style={[styles.field, { flex: 1 }]}>
-                <Text style={styles.fieldLabel}>Color</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorScroll}>
-                  {COLORS_LIST.map(c => (
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Color</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorScroll}>
+                {COLORS_LIST.map(c => (
+                  <Pressable
+                    key={c.name}
+                    style={[styles.colorSwatch, { backgroundColor: c.hex }, color === c.name && styles.colorSwatchSelected]}
+                    onPress={() => setColor(c.name)}
+                  >
+                    {color === c.name && <Ionicons name="checkmark" size={14} color={c.name === "White" ? Colors.text : Colors.white} />}
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <Text style={styles.colorName}>{color}</Text>
+            </View>
+
+            <View style={[styles.field, { zIndex: 10 }]}>
+              <Text style={styles.fieldLabel}>Season</Text>
+              <Pressable style={styles.select} onPress={() => { setShowSeasonPicker(!showSeasonPicker); setShowCatPicker(false); }}>
+                <Text style={styles.selectText}>{season}</Text>
+                <Ionicons name={showSeasonPicker ? "chevron-up" : "chevron-down"} size={18} color={Colors.textSecondary} />
+              </Pressable>
+              {showSeasonPicker && (
+                <View style={[styles.dropdown, { zIndex: 100 }]}>
+                  {SEASONS.map(s => (
                     <Pressable
-                      key={c.name}
-                      style={[styles.colorSwatch, { backgroundColor: c.hex }, color === c.name && styles.colorSwatchSelected]}
-                      onPress={() => setColor(c.name)}
+                      key={s}
+                      style={[styles.dropdownItem, s === season && styles.dropdownItemActive]}
+                      onPress={() => { setSeason(s); setShowSeasonPicker(false); }}
                     >
-                      {color === c.name && <Ionicons name="checkmark" size={14} color={c.name === "White" ? Colors.text : Colors.white} />}
+                      <Text style={[styles.dropdownItemText, s === season && styles.dropdownItemTextActive]}>{s}</Text>
+                      {s === season && <Ionicons name="checkmark" size={16} color={Colors.primary} />}
                     </Pressable>
                   ))}
-                </ScrollView>
-                <Text style={styles.colorName}>{color}</Text>
-              </View>
-
-              <View style={[styles.field, { flex: 1 }]}>
-                <Text style={styles.fieldLabel}>Season</Text>
-                <Pressable style={styles.select} onPress={() => setShowSeasonPicker(!showSeasonPicker)}>
-                  <Text style={styles.selectText}>{season}</Text>
-                  <Ionicons name="chevron-down" size={18} color={Colors.textSecondary} />
-                </Pressable>
-                {showSeasonPicker && (
-                  <View style={[styles.dropdown, { zIndex: 100 }]}>
-                    {SEASONS.map(s => (
-                      <Pressable
-                        key={s}
-                        style={[styles.dropdownItem, s === season && styles.dropdownItemActive]}
-                        onPress={() => { setSeason(s); setShowSeasonPicker(false); }}
-                      >
-                        <Text style={[styles.dropdownItemText, s === season && styles.dropdownItemTextActive]}>{s}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-              </View>
+                </View>
+              )}
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Brand</Text>
+              <Text style={styles.fieldLabel}>Brand <Text style={styles.optional}>(optional)</Text></Text>
               <TextInput
                 style={styles.input}
                 placeholder="e.g. Everlane"
@@ -277,7 +280,7 @@ export default function AddItemScreen() {
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Notes</Text>
+              <Text style={styles.fieldLabel}>Notes <Text style={styles.optional}>(optional)</Text></Text>
               <TextInput
                 style={[styles.input, styles.textarea]}
                 placeholder="Add any extra details..."
@@ -305,13 +308,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 12,
   },
   headerTitle: { fontFamily: "Inter_700Bold", fontSize: 18, color: Colors.text },
-  saveBtn: {
-    backgroundColor: Colors.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8,
-  },
+  saveBtn: { backgroundColor: Colors.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8 },
   saveBtnText: { fontFamily: "Inter_700Bold", fontSize: 14, color: Colors.white },
   imageWrap: {
     marginHorizontal: 16, borderRadius: 16, overflow: "hidden",
-    height: 240, backgroundColor: Colors.surface, marginBottom: 12, position: "relative",
+    height: 220, backgroundColor: Colors.surface, marginBottom: 12, position: "relative",
   },
   image: { width: "100%", height: "100%", resizeMode: "cover" },
   cameraBtn: {
@@ -336,14 +337,9 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.border,
   },
   tagText: { fontFamily: "Inter_500Medium", fontSize: 13, color: Colors.text },
-  addTagBtn: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7,
-    borderWidth: 1.5, borderColor: Colors.border, borderStyle: "dashed",
-  },
-  addTagText: { fontFamily: "Inter_500Medium", fontSize: 12, color: Colors.primary },
   form: { paddingHorizontal: 16, gap: 16 },
   field: { gap: 6 },
+  optional: { fontFamily: "Inter_400Regular", color: Colors.textTertiary, fontSize: 12 },
   fieldLabel: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: Colors.text },
   input: {
     borderRadius: 10, borderWidth: 1.5, borderColor: Colors.border,
@@ -358,22 +354,21 @@ const styles = StyleSheet.create({
   },
   selectText: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.text },
   dropdown: {
-    position: "absolute", top: 80, left: 0, right: 0, zIndex: 50,
+    position: "absolute", top: 82, left: 0, right: 0, zIndex: 50,
     backgroundColor: Colors.card, borderRadius: 10, borderWidth: 1, borderColor: Colors.border,
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 8,
-    maxHeight: 180, overflow: "scroll",
+    maxHeight: 200, overflow: "scroll",
   },
-  dropdownItem: { paddingHorizontal: 16, paddingVertical: 12 },
+  dropdownItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12 },
   dropdownItemActive: { backgroundColor: Colors.surface },
   dropdownItemText: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.text },
   dropdownItemTextActive: { fontFamily: "Inter_600SemiBold", color: Colors.primary },
-  row: { flexDirection: "row", gap: 12 },
   colorScroll: { gap: 8, paddingVertical: 4 },
   colorSwatch: {
-    width: 28, height: 28, borderRadius: 14,
-    borderWidth: 1, borderColor: Colors.border,
+    width: 30, height: 30, borderRadius: 15,
+    borderWidth: 1.5, borderColor: Colors.border,
     alignItems: "center", justifyContent: "center",
   },
-  colorSwatchSelected: { borderWidth: 2.5, borderColor: Colors.primary },
-  colorName: { fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.textSecondary },
+  colorSwatchSelected: { borderWidth: 3, borderColor: Colors.primary },
+  colorName: { fontFamily: "Inter_500Medium", fontSize: 12, color: Colors.textSecondary },
 });

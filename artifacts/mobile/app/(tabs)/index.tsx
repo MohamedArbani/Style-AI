@@ -3,7 +3,6 @@ import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Image,
   Platform,
@@ -16,8 +15,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { useToast } from "@/components/Toast";
 import { useWardrobe, WardrobeItem } from "@/context/WardrobeContext";
-import { useAuth } from "@/context/AuthContext";
 
 const CATEGORIES = ["All", "Tops & T-shirts", "Shirts", "Jackets & Coats", "Bottoms", "Dresses", "Shoes", "Accessories"];
 
@@ -25,12 +24,7 @@ function WardrobeCard({ item, onDelete }: { item: WardrobeItem; onDelete: () => 
   return (
     <Pressable
       style={styles.card}
-      onLongPress={() =>
-        Alert.alert("Remove Item", `Remove "${item.name}" from your wardrobe?`, [
-          { text: "Cancel", style: "cancel" },
-          { text: "Remove", style: "destructive", onPress: onDelete },
-        ])
-      }
+      onLongPress={onDelete}
     >
       {item.imageUrl ? (
         <Image source={{ uri: item.imageUrl }} style={styles.cardImg} />
@@ -49,7 +43,7 @@ function WardrobeCard({ item, onDelete }: { item: WardrobeItem; onDelete: () => 
 
 export default function WardrobeScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const toast = useToast();
   const { items, isLoading, fetchItems, removeItem } = useWardrobe();
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
@@ -62,6 +56,12 @@ export default function WardrobeScreen() {
       fetchItems();
     }, [fetchItems])
   );
+
+  const handleDelete = useCallback((item: WardrobeItem) => {
+    removeItem(item.id)
+      .then(() => toast.success(`"${item.name}" removed from wardrobe`))
+      .catch(() => toast.error("Failed to remove item. Please try again."));
+  }, [removeItem, toast]);
 
   const filtered = items.filter(item => {
     const matchCat = activeCategory === "All" || item.category === activeCategory;
@@ -138,7 +138,7 @@ export default function WardrobeScreen() {
           renderItem={({ item }) => (
             <WardrobeCard
               item={item}
-              onDelete={() => removeItem(item.id)}
+              onDelete={() => handleDelete(item)}
             />
           )}
         />
@@ -161,10 +161,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 12,
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-  avatar: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: Colors.surface, alignItems: "center", justifyContent: "center",
-  },
+  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.surface, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontFamily: "Inter_700Bold", fontSize: 20, color: Colors.text },
   searchWrap: {
     flexDirection: "row", alignItems: "center", gap: 10,
@@ -188,9 +185,7 @@ const styles = StyleSheet.create({
     overflow: "hidden", borderWidth: 1, borderColor: Colors.border,
   },
   cardImg: { width: "100%", aspectRatio: 1, resizeMode: "cover" },
-  cardImgPlaceholder: {
-    backgroundColor: Colors.surface, alignItems: "center", justifyContent: "center",
-  },
+  cardImgPlaceholder: { backgroundColor: Colors.surface, alignItems: "center", justifyContent: "center" },
   cardBody: { padding: 10, gap: 3 },
   cardName: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: Colors.text },
   cardMeta: { fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.textSecondary },
@@ -202,8 +197,7 @@ const styles = StyleSheet.create({
   fab: {
     position: "absolute", right: 20,
     width: 56, height: 56, borderRadius: 28,
-    backgroundColor: Colors.primary,
-    alignItems: "center", justifyContent: "center",
+    backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center",
     shadowColor: Colors.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 1, shadowRadius: 12, elevation: 8,
   },
 });

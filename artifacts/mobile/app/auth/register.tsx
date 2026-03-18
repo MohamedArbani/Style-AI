@@ -2,7 +2,6 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,10 +14,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/components/Toast";
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
   const { register } = useAuth();
+  const toast = useToast();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,26 +30,32 @@ export default function RegisterScreen() {
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
   const handleRegister = async () => {
-    if (!fullName || !email || !password) {
-      Alert.alert("Missing fields", "Please fill in all fields");
+    if (!fullName.trim()) {
+      toast.warning("Please enter your full name");
+      return;
+    }
+    if (!email.trim() || !email.includes("@")) {
+      toast.warning("Please enter a valid email address");
+      return;
+    }
+    if (password.length < 6) {
+      toast.warning("Password must be at least 6 characters");
       return;
     }
     setIsLoading(true);
     try {
-      await register(fullName, email, password);
+      await register(fullName.trim(), email.trim(), password);
+      toast.success("Account created! Let's set up your profile.");
       router.replace("/setup/language");
     } catch {
-      Alert.alert("Error", "Failed to create account");
+      toast.error("Failed to create account. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
       <ScrollView
         style={[styles.container, { paddingTop: topInset }]}
         contentContainerStyle={{ paddingBottom: bottomInset + 24 }}
@@ -105,7 +112,7 @@ export default function RegisterScreen() {
               <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} />
               <TextInput
                 style={styles.input}
-                placeholder="Create a strong password"
+                placeholder="At least 6 characters"
                 placeholderTextColor={Colors.textTertiary}
                 value={password}
                 onChangeText={setPassword}
@@ -142,103 +149,33 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  backBtn: {
-    marginHorizontal: 20,
-    marginBottom: 8,
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  header: {
-    alignItems: "center",
-    marginBottom: 36,
-    gap: 8,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  backBtn: { marginHorizontal: 20, marginBottom: 8, width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  header: { alignItems: "center", marginBottom: 36, gap: 8 },
   iconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
-    backgroundColor: Colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
+    width: 64, height: 64, borderRadius: 18, backgroundColor: Colors.surface,
+    alignItems: "center", justifyContent: "center", marginBottom: 4,
   },
-  appTitle: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 28,
-    color: Colors.text,
-  },
-  appTagline: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 15,
-    color: Colors.textSecondary,
-  },
-  form: {
-    paddingHorizontal: 20,
-    gap: 20,
-  },
-  fieldGroup: {
-    gap: 8,
-  },
-  label: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 14,
-    color: Colors.text,
-  },
+  appTitle: { fontFamily: "Inter_700Bold", fontSize: 28, color: Colors.text },
+  appTagline: { fontFamily: "Inter_400Regular", fontSize: 15, color: Colors.textSecondary },
+  form: { paddingHorizontal: 20, gap: 20 },
+  fieldGroup: { gap: 8 },
+  label: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: Colors.text },
   inputWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    backgroundColor: Colors.card,
-    paddingHorizontal: 14,
-    height: 50,
+    flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 12,
+    borderWidth: 1.5, borderColor: Colors.border, backgroundColor: Colors.card,
+    paddingHorizontal: 14, height: 50,
   },
-  input: {
-    flex: 1,
-    fontFamily: "Inter_400Regular",
-    fontSize: 15,
-    color: Colors.text,
-  },
+  input: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 15, color: Colors.text },
   signUpBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: 14,
-    height: 54,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginTop: 4,
+    backgroundColor: Colors.primary, borderRadius: 14, height: 54,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 4,
   },
-  signUpText: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 16,
-    color: Colors.white,
-  },
-  loginLink: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: "center",
-  },
-  loginLinkBold: {
-    fontFamily: "Inter_600SemiBold",
-    color: Colors.primary,
-  },
+  signUpText: { fontFamily: "Inter_700Bold", fontSize: 16, color: Colors.white },
+  loginLink: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center" },
+  loginLinkBold: { fontFamily: "Inter_600SemiBold", color: Colors.primary },
   terms: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 12,
-    color: Colors.textTertiary,
-    textAlign: "center",
-    marginTop: 24,
-    lineHeight: 18,
-    paddingHorizontal: 20,
+    fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.textTertiary,
+    textAlign: "center", marginTop: 24, lineHeight: 18, paddingHorizontal: 20,
   },
 });
