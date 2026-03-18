@@ -1,15 +1,20 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Smart Wardrobe AI API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: wardrobe
+    description: Wardrobe item operations
+  - name: outfits
+    description: Outfit recommendation operations
+  - name: ai
+    description: AI generation operations
 paths:
   /healthz:
     get:
@@ -24,6 +29,122 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /wardrobe/items:
+    get:
+      operationId: getWardrobeItems
+      tags: [wardrobe]
+      summary: Get all wardrobe items
+      parameters:
+        - in: query
+          name: userId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: category
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of wardrobe items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WardrobeItem"
+    post:
+      operationId: createWardrobeItem
+      tags: [wardrobe]
+      summary: Add a new wardrobe item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWardrobeItemBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WardrobeItem"
+  /wardrobe/items/{id}:
+    delete:
+      operationId: deleteWardrobeItem
+      tags: [wardrobe]
+      summary: Delete a wardrobe item
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResponse"
+  /wardrobe/scan:
+    post:
+      operationId: scanClothingItem
+      tags: [wardrobe]
+      summary: Scan a clothing image and get AI suggestions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScanClothingBody"
+      responses:
+        "200":
+          description: AI scan results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanClothingResult"
+  /outfits/recommend:
+    post:
+      operationId: recommendOutfits
+      tags: [outfits]
+      summary: Get AI outfit recommendations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecommendOutfitsBody"
+      responses:
+        "200":
+          description: Outfit recommendations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OutfitRecommendation"
+  /ai/try-on:
+    post:
+      operationId: generateTryOn
+      tags: [ai]
+      summary: Generate AI try-on image
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TryOnBody"
+      responses:
+        "200":
+          description: Generated try-on image
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TryOnResult"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +154,166 @@ components:
           type: string
       required:
         - status
-
+    WardrobeItem:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        color:
+          type: string
+        season:
+          type: string
+        brand:
+          type: string
+        notes:
+          type: string
+        imageUrl:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - userId
+        - name
+        - category
+        - color
+        - createdAt
+    CreateWardrobeItemBody:
+      type: object
+      properties:
+        userId:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        color:
+          type: string
+        season:
+          type: string
+        brand:
+          type: string
+        notes:
+          type: string
+        imageUrl:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - userId
+        - name
+        - category
+        - color
+    ScanClothingBody:
+      type: object
+      properties:
+        imageBase64:
+          type: string
+      required:
+        - imageBase64
+    ScanClothingResult:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        color:
+          type: string
+        season:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - name
+        - category
+        - color
+        - tags
+    RecommendOutfitsBody:
+      type: object
+      properties:
+        userId:
+          type: string
+        occasion:
+          type: string
+        weather:
+          type: string
+        stylePreferences:
+          type: array
+          items:
+            type: string
+      required:
+        - userId
+    OutfitRecommendation:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WardrobeItem"
+        occasion:
+          type: string
+        matchScore:
+          type: number
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - name
+        - description
+        - items
+        - matchScore
+    TryOnBody:
+      type: object
+      properties:
+        userPhotoBase64:
+          type: string
+        selectedItemIds:
+          type: array
+          items:
+            type: string
+        userId:
+          type: string
+      required:
+        - userPhotoBase64
+        - selectedItemIds
+        - userId
+    TryOnResult:
+      type: object
+      properties:
+        imageBase64:
+          type: string
+        description:
+          type: string
+      required:
+        - imageBase64
+        - description
+    DeleteResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success

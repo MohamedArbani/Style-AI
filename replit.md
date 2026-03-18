@@ -91,6 +91,25 @@ Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used b
 
 Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
 
+### `artifacts/mobile` (`@workspace/mobile`)
+
+Expo/React Native mobile app — Smart Wardrobe AI.
+
+- Entry: `app/_layout.tsx` — root layout with AuthProvider, WardrobeProvider, font loading, navigation redirect
+- Tabs: `app/(tabs)/` — 4 tabs: Wardrobe (index), AI Style (ai-style), Try-On (try-on), Profile (profile)
+- Onboarding flow: `app/onboarding.tsx` → `app/auth/login.tsx` or `app/auth/register.tsx`
+- Setup flow: `app/setup/language.tsx` → gender → age → height → style
+- Add item modal: `app/wardrobe/add.tsx` — camera/library picker + AI scan (GPT-4V) + form
+- Premium screen: `app/premium.tsx` — pricing plans modal
+- Context: `context/AuthContext.tsx` (local AsyncStorage auth), `context/WardrobeContext.tsx` (API calls)
+- Theme: `constants/colors.ts` — royal blue/indigo (`#1B2CC1`), Inter font
+
+Features:
+- AI item scanning via GPT-4V from photo
+- AI outfit recommendations (GPT) based on wardrobe
+- AI virtual try-on image generation (gpt-image-1)
+- Full onboarding: language, gender, age, height, style preferences
+
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
