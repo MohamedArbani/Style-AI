@@ -5,12 +5,13 @@ export type UserProfile = {
   id: string;
   fullName: string;
   email: string;
-  gender?: string;
-  ageRange?: string;
-  height?: number;
-  heightUnit?: "cm" | "ft";
+  gender?: string | null;
+  ageRange?: string | null;
+  height?: string | null;
+  heightUnit?: string | null;
   stylePreferences?: string[];
-  language?: string;
+  language?: string | null;
+  isOnboarded?: boolean;
 };
 
 type AuthContextType = {
@@ -26,8 +27,15 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const USER_KEY = "smart_wardrobe_user";
-const ONBOARDED_KEY = "smart_wardrobe_onboarded";
+const SESSION_KEY = "smart_wardrobe_session_v2";
+
+const getApiBase = () => {
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (apiUrl) return apiUrl;
+  const domain = process.env.EXPO_PUBLIC_DOMAIN;
+  if (domain) return `https://${domain}/api-server`;
+  return "";
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -35,73 +43,107 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isOnboarded, setIsOnboarded] = useState(false);
 
   useEffect(() => {
-    loadUser();
+    loadSession();
   }, []);
 
-  const loadUser = async () => {
+  const loadSession = async () => {
     try {
-      const [userData, onboardedData] = await Promise.all([
-        AsyncStorage.getItem(USER_KEY),
-        AsyncStorage.getItem(ONBOARDED_KEY),
-      ]);
-      if (userData) {
-        setUser(JSON.parse(userData));
+      const sessionData = await AsyncStorage.getItem(SESSION_KEY);
+      if (sessionData) {
+        const session = JSON.parse(sessionData) as UserProfile;
+        try {
+          const res = await fetch(`${getApiBase()}/api/auth/user/${session.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            const refreshed = data.user as UserProfile;
+            setUser(refreshed);
+            setIsOnboarded(refreshed.isOnboarded ?? false);
+            await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(refreshed));
+            return;
+          }
+        } catch {
+          // Network error, use cached session
+        }
+        setUser(session);
+        setIsOnboarded(session.isOnboarded ?? false);
       }
-      setIsOnboarded(onboardedData === "true");
     } catch (err) {
-      console.error("Error loading user:", err);
+      console.error("Error loading session:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const saveUser = async (userData: UserProfile) => {
-    await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
+  const saveSession = async (userData: UserProfile) => {
+    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(userData));
     setUser(userData);
+    setIsOnboarded(userData.isOnboarded ?? false);
   };
 
-  const login = async (email: string, _password: string) => {
-    // Mock login - in production would verify credentials
-    const existingData = await AsyncStorage.getItem(USER_KEY);
-    if (existingData) {
-      const existingUser = JSON.parse(existingData);
-      if (existingUser.email === email) {
-        setUser(existingUser);
-        return;
-      }
-    }
-    const newUser: UserProfile = {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      fullName: email.split("@")[0],
-      email,
-    };
-    await saveUser(newUser);
+  const login = async (email: string, password: string) => {
+    const res = await fetch(`${getApiBase()}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Login failed");
+    await saveSession(data.user as UserProfile);
   };
 
-  const register = async (fullName: string, email: string, _password: string) => {
-    const newUser: UserProfile = {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      fullName,
-      email,
-    };
-    await saveUser(newUser);
+  const register = async (fullName: string, email: string, password: string) => {
+    const res = await fetch(`${getApiBase()}/api/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fullName, email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Registration failed");
+    await saveSession(data.user as UserProfile);
   };
 
   const logout = async () => {
-    await AsyncStorage.multiRemove([USER_KEY, ONBOARDED_KEY]);
+    await AsyncStorage.removeItem(SESSION_KEY);
     setUser(null);
     setIsOnboarded(false);
   };
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!user) return;
-    const updated = { ...user, ...updates };
-    await saveUser(updated);
+    try {
+      const res = await fetch(`${getApiBase()}/api/auth/user/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await saveSession(data.user as UserProfile);
+        return;
+      }
+    } catch {
+      // Fallback to local update
+    }
+    await saveSession({ ...user, ...updates });
   };
 
   const completeOnboarding = async () => {
-    await AsyncStorage.setItem(ONBOARDED_KEY, "true");
-    setIsOnboarded(true);
+    if (!user) return;
+    try {
+      const res = await fetch(`${getApiBase()}/api/auth/user/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isOnboarded: true }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await saveSession(data.user as UserProfile);
+        return;
+      }
+    } catch {
+      // Fallback
+    }
+    await saveSession({ ...user, isOnboarded: true });
   };
 
   return (

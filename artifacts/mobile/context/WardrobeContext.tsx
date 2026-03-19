@@ -39,8 +39,10 @@ export type OutfitRecommendation = {
 const WardrobeContext = createContext<WardrobeContextType | null>(null);
 
 const getBaseUrl = () => {
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (apiUrl) return apiUrl;
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}`;
+  if (domain) return `https://${domain}/api-server`;
   return "";
 };
 
@@ -89,11 +91,11 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
     const res = await fetch(`${getBaseUrl()}/api/wardrobe/scan`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageBase64 }),
+      body: JSON.stringify({ imageBase64, userId: user?.id }),
     });
     if (!res.ok) throw new Error("Failed to scan item");
     return res.json();
-  }, []);
+  }, [user]);
 
   const recommendOutfits = useCallback(async (params?: { occasion?: string; weather?: string; stylePreferences?: string[] }) => {
     if (!user) return [];

@@ -114,7 +114,10 @@ export default function AddItemScreen() {
     }
     setIsSaving(true);
     try {
-      await addItem({ name: name.trim(), category, color, season, brand, notes, tags, imageUrl: imageUri ?? undefined });
+      const imageUrl = imageBase64
+        ? `data:image/jpeg;base64,${imageBase64}`
+        : imageUri ?? undefined;
+      await addItem({ name: name.trim(), category, color, season, brand, notes, tags, imageUrl });
       toast.success(`"${name}" added to your wardrobe!`);
       router.back();
     } catch {

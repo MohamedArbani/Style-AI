@@ -1,5 +1,7 @@
 import { Router, type IRouter } from "express";
 import OpenAI from "openai";
+import { db, wardrobeItemsTable, usersTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
@@ -8,17 +10,31 @@ const openai = new OpenAI({
 
 const router: IRouter = Router();
 
+async function getUserPreferences(userId: string) {
+  try {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    return user || null;
+  } catch {
+    return null;
+  }
+}
+
 router.post("/wardrobe/scan", async (req, res) => {
   try {
-    const { imageBase64 } = req.body;
+    const { imageBase64, userId } = req.body;
     if (!imageBase64) {
       res.status(400).json({ error: "imageBase64 is required" });
       return;
     }
 
+    const userPrefs = userId ? await getUserPreferences(userId) : null;
+    const styleContext = userPrefs?.stylePreferences?.length
+      ? `The user's style preferences are: ${userPrefs.stylePreferences.join(", ")}.`
+      : "";
+
     const response = await openai.chat.completions.create({
-      model: "gpt-5.2",
-      max_completion_tokens: 1024,
+      model: "gpt-4o",
+      max_tokens: 1024,
       messages: [
         {
           role: "user",
@@ -31,6 +47,7 @@ router.post("/wardrobe/scan", async (req, res) => {
 - color: primary color name (e.g. "White", "Navy Blue", "Beige")
 - season: one of ["Spring", "Summer", "Autumn", "Winter", "All Season"]
 - tags: array of 2-4 descriptive tags (e.g. ["Casual", "Cotton", "Classic"])
+${styleContext}
 
 Return ONLY valid JSON, nothing else.`,
             },
@@ -57,19 +74,27 @@ Return ONLY valid JSON, nothing else.`,
 
 router.post("/outfits/recommend", async (req, res) => {
   try {
-    const { userId, occasion, weather, stylePreferences } = req.body;
+    const { userId, occasion, weather } = req.body;
 
-    const { db, wardrobeItemsTable } = await import("@workspace/db");
-    const { eq } = await import("drizzle-orm");
-
-    const items = await db.select().from(wardrobeItemsTable).where(eq(wardrobeItemsTable.userId, userId));
+    const items = userId
+      ? await db.select().from(wardrobeItemsTable).where(eq(wardrobeItemsTable.userId, userId))
+      : [];
 
     if (items.length === 0) {
       res.json([]);
       return;
     }
 
-    const itemsList = items.map(item => `- ${item.name} (${item.category}, ${item.color}, ${item.season || "All Season"})`).join("\n");
+    const userPrefs = userId ? await getUserPreferences(userId) : null;
+    const itemsList = items
+      .map(item => `- ${item.name} (${item.category}, ${item.color}, ${item.season || "All Season"})`)
+      .join("\n");
+
+    const styleContext = userPrefs?.stylePreferences?.length
+      ? `User's style preferences: ${userPrefs.stylePreferences.join(", ")}`
+      : "";
+    const genderContext = userPrefs?.gender ? `User gender: ${userPrefs.gender}` : "";
+    const ageContext = userPrefs?.ageRange ? `Age range: ${userPrefs.ageRange}` : "";
 
     const prompt = `You are a professional fashion stylist. Based on the user's wardrobe, create 3 outfit recommendations.
 
@@ -78,15 +103,17 @@ ${itemsList}
 
 ${occasion ? `Occasion: ${occasion}` : ""}
 ${weather ? `Weather: ${weather}` : ""}
-${stylePreferences?.length ? `Style preferences: ${stylePreferences.join(", ")}` : ""}
+${styleContext}
+${genderContext}
+${ageContext}
 
-Return a JSON array of exactly 3 outfit objects with this structure:
+Return a JSON array of exactly 3 outfit objects:
 [
   {
     "id": "outfit1",
     "name": "outfit name",
-    "description": "brief style description",
-    "itemNames": ["item name 1", "item name 2", ...],
+    "description": "brief style description tailored to the user's preferences",
+    "itemNames": ["item name 1", "item name 2"],
     "occasion": "suitable occasion",
     "matchScore": 95,
     "tags": ["tag1", "tag2"]
@@ -96,8 +123,8 @@ Return a JSON array of exactly 3 outfit objects with this structure:
 Choose items that go well together. matchScore is 0-100. Return ONLY valid JSON array.`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-5.2",
-      max_completion_tokens: 2048,
+      model: "gpt-4o",
+      max_tokens: 2048,
       messages: [{ role: "user", content: prompt }],
     });
 
@@ -108,7 +135,10 @@ Choose items that go well together. matchScore is 0-100. Return ONLY valid JSON 
     const result = outfits.map((outfit: { id: string; name: string; description: string; itemNames: string[]; occasion: string; matchScore: number; tags: string[] }) => ({
       ...outfit,
       items: outfit.itemNames?.map((name: string) => {
-        const found = items.find(i => i.name.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(i.name.toLowerCase()));
+        const found = items.find(i =>
+          i.name.toLowerCase().includes(name.toLowerCase()) ||
+          name.toLowerCase().includes(i.name.toLowerCase())
+        );
         return found ? { ...found, createdAt: found.createdAt.toISOString() } : null;
       }).filter(Boolean) || [],
     }));
@@ -128,17 +158,24 @@ router.post("/ai/try-on", async (req, res) => {
       return;
     }
 
-    const { db, wardrobeItemsTable } = await import("@workspace/db");
-    const { eq } = await import("drizzle-orm");
+    const items = userId
+      ? await db.select().from(wardrobeItemsTable).where(eq(wardrobeItemsTable.userId, userId))
+      : [];
 
-    const items = await db.select().from(wardrobeItemsTable).where(eq(wardrobeItemsTable.userId, userId));
     const selectedItems = items.filter(item => selectedItemIds.includes(item.id));
-    const itemDescriptions = selectedItems.map(item => `${item.name} (${item.color} ${item.category})`).join(", ");
+    const itemDescriptions = selectedItems.length > 0
+      ? selectedItems.map(item => `${item.name} (${item.color} ${item.category})`).join(", ")
+      : "stylish modern outfit";
 
-    const prompt = `Create a realistic fashion photo of a stylish person wearing the following outfit: ${itemDescriptions}. 
-The image should be a full-body or 3/4 length fashion photograph, professional studio lighting, clean white or neutral background. 
-The outfit items should be clearly visible and well-coordinated. Fashion magazine quality. Photorealistic style.
-Absolutely no text, letters, numbers, or watermarks visible anywhere.`;
+    const userPrefs = userId ? await getUserPreferences(userId) : null;
+    const styleContext = userPrefs?.stylePreferences?.length
+      ? ` with a ${userPrefs.stylePreferences.join(" and ")} aesthetic`
+      : "";
+
+    const prompt = `Create a realistic fashion photo of a stylish person wearing: ${itemDescriptions}${styleContext}.
+Full-body fashion photograph, professional studio lighting, clean neutral background.
+All clothing items clearly visible, well-coordinated. Fashion magazine quality. Photorealistic.
+No text, letters, numbers, or watermarks anywhere in the image.`;
 
     const imageResponse = await openai.images.generate({
       model: "gpt-image-1",

@@ -40,7 +40,7 @@ export default function HeightSetupScreen() {
   const displayHeight = unit === "cm" ? `${height} cm` : cmToFtIn(height);
 
   const handleContinue = async () => {
-    await updateProfile({ height, heightUnit: unit });
+    await updateProfile({ height: height.toString(), heightUnit: unit });
     router.push("/setup/style");
   };
 
