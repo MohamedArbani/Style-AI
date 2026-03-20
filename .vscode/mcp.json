@@ -1,0 +1,50 @@
+{
+  "servers": {
+    // GitHub MCP — lets Copilot read/create issues, PRs, and repo contents
+    "github": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${input:github-pat}"
+      }
+    },
+    // PostgreSQL MCP — lets Copilot inspect the live database schema and run read-only queries
+    "postgres": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "${input:database-url}"
+      ]
+    },
+    // Filesystem MCP — scoped read access to the workspace root
+    "filesystem": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "${workspaceFolder}"
+      ]
+    }
+  },
+  "inputs": [
+    {
+      "id": "github-pat",
+      "type": "promptString",
+      "description": "GitHub Personal Access Token (repo + read:org scopes)",
+      "password": true
+    },
+    {
+      "id": "database-url",
+      "type": "promptString",
+      "description": "PostgreSQL connection string (e.g. postgresql://postgres:postgres@localhost:5432/smart_wardrobe)",
+      "password": true
+    }
+  ]
+}

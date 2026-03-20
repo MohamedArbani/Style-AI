@@ -1,0 +1,39 @@
+{
+  // ── Editor ─────────────────────────────────────────────────────────────────
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  // ── Search ─────────────────────────────────────────────────────────────────
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.expo": true,
+    "**/lib/api-client-react/src/generated": true,
+    "**/lib/api-zod/src/generated": true
+  },
+  // ── Files ──────────────────────────────────────────────────────────────────
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/.expo": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/dist/**": true
+  },
+  // ── GitHub Copilot ─────────────────────────────────────────────────────────
+  // Disable Copilot completions inside generated files
+  "github.copilot.enable": {
+    "*": true,
+    "plaintext": false,
+    "lib/api-client-react/src/generated/*": false,
+    "lib/api-zod/src/generated/*": false
+  },
+  // ── Expo / React Native ────────────────────────────────────────────────────
+  "react-native-tools.projectRoot": "${workspaceFolder}/artifacts/mobile",
+  // ── Drizzle ────────────────────────────────────────────────────────────────
+  "drizzle.schemaFilePaths": [
+    "lib/db/src/schema/index.ts"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "recommendations": [
+    // TypeScript / JavaScript
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    // GitHub Copilot
+    "github.copilot",
+    "github.copilot-chat",
+    // React Native / Expo
+    "msjsdiag.vscode-react-native",
+    "expo.vscode-expo-tools",
+    // Database
+    "mtxr.sqltools",
+    "mtxr.sqltools-driver-pg",
+    // REST / API testing
+    "humao.rest-client",
+    // Docker
+    "ms-azuretools.vscode-docker"
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start API Server",
+      "type": "shell",
+      "command": "pnpm --filter @workspace/api-server run dev",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Mobile App",
+      "type": "shell",
+      "command": "pnpm --filter @workspace/mobile run start",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Database (Docker)",
+      "type": "shell",
+      "command": "docker compose up -d",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+      }
+    },
+    {
+      "label": "Push DB Schema",
+      "type": "shell",
+      "command": "pnpm --filter @workspace/db run push",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Codegen (OpenAPI → TS)",
+      "type": "shell",
+      "command": "pnpm --filter @workspace/api-spec run codegen",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "TypeCheck All",
+      "type": "shell",
+      "command": "pnpm run typecheck",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": "$tsc"
+    },
+    {
+      "label": "Start Everything",
+      "dependsOn": [
+        "Start Database (Docker)",
+        "Start API Server",
+        "Start Mobile App"
+      ],
+      "dependsOrder": "sequence",
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    }
+  ]
+}
