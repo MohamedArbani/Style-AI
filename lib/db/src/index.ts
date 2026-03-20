@@ -14,3 +14,20 @@ export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const db = drizzle(pool, { schema });
 
 export * from "./schema";
+export {
+  eq,
+  and,
+  or,
+  ne,
+  gt,
+  gte,
+  lt,
+  lte,
+  like,
+  ilike,
+  inArray,
+  notInArray,
+  sql,
+  asc,
+  desc,
+} from "drizzle-orm";

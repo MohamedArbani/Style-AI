@@ -1,7 +1,7 @@
 import { BlurView } from "expo-blur";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
-import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
+import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import { MaterialCommunityIcons, Feather, Ionicons } from "@expo/vector-icons";
 import React from "react";
@@ -10,22 +10,36 @@ import Colors from "@/constants/colors";
 
 function NativeTabLayout() {
   return (
-    <NativeTabs>
+    <NativeTabs
+      labelStyle={{
+        fontFamily: "Inter_500Medium",
+        fontSize: 11,
+      }}
+      iconColor={{
+        default: Colors.textTertiary,
+        selected: Colors.primary,
+      }}
+    >
       <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "hanger", selected: "hanger" }} />
-        <Label>Wardrobe</Label>
+        <NativeTabs.Trigger.Icon sf="hanger" />
+        <NativeTabs.Trigger.Label>Wardrobe</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="ai-style">
-        <Icon sf={{ default: "sparkles", selected: "sparkles.fill" }} />
-        <Label>AI Style</Label>
+        <NativeTabs.Trigger.Icon sf="sparkles" />
+        <NativeTabs.Trigger.Label>AI Style</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="try-on">
-        <Icon sf={{ default: "person.crop.square.filled.and.at.rectangle", selected: "person.crop.square.filled.and.at.rectangle.fill" }} />
-        <Label>Try-On</Label>
+        <NativeTabs.Trigger.Icon
+          sf={{
+            default: "person.crop.square.filled.and.at.rectangle",
+            selected: "person.crop.square.filled.and.at.rectangle.fill",
+          }}
+        />
+        <NativeTabs.Trigger.Label>Try-On</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
-        <Icon sf={{ default: "person", selected: "person.fill" }} />
-        <Label>Profile</Label>
+        <NativeTabs.Trigger.Icon sf={{ default: "person", selected: "person.fill" }} />
+        <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );

@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -81,8 +82,15 @@ export default function AddItemScreen() {
       pickImage(false);
       return;
     }
-    toast.info("Choose an option");
-    setTimeout(() => pickImage(false), 300);
+    Alert.alert(
+      "Add Photo",
+      "Choose how to add a photo of your clothing item",
+      [
+        { text: "Camera", onPress: () => pickImage(true) },
+        { text: "Photo Library", onPress: () => pickImage(false) },
+        { text: "Cancel", style: "cancel" },
+      ]
+    );
   };
 
   const handleScan = async () => {

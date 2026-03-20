@@ -70,7 +70,7 @@ const openai = new OpenAI({
 | ----------------------------- | ----------------- | -------------------------------------------------------------------- |
 | `POST /api/wardrobe/scan`     | `gpt-4o` (vision) | Extracts `{name, category, color, season, tags}` from clothing photo |
 | `POST /api/outfits/recommend` | `gpt-4o`          | Returns 3 outfit suggestions from user's wardrobe items              |
-| `POST /api/ai/try-on`         | `gpt-image-1`     | Generates outfit image from user photo + item descriptions           |
+| `POST /api/ai/try-on`         | `FLUX.1-schnell`  | Generates outfit image via HuggingFace free Inference API            |
 
 - AI prompts must request **JSON output only** — parse with `JSON.parse()` and validate against expected shape
 - Image payloads are base64 strings; strip any `data:image/...;base64,` prefix before sending to OpenAI

@@ -46,7 +46,6 @@ export default function RegisterScreen() {
     try {
       await register(fullName.trim(), email.trim(), password);
       toast.success("Account created! Let's set up your profile.");
-      router.replace("/setup/language");
     } catch {
       toast.error("Failed to create account. Please try again.");
     } finally {

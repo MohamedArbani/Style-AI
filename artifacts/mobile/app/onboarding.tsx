@@ -2,19 +2,17 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
-  Dimensions,
   FlatList,
   Platform,
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
   ViewToken,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
-
-const { width } = Dimensions.get("window");
 
 const slides = [
   {
@@ -45,6 +43,7 @@ const slides = [
 
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
@@ -89,9 +88,10 @@ export default function OnboardingScreen() {
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
         keyExtractor={item => item.id}
+        getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
         renderItem={({ item }) => (
           <View style={[styles.slide, { width }]}>
-            <View style={styles.illustrationContainer}>
+            <View style={[styles.illustrationContainer, { width: width - 48 }]}>
               <View style={styles.illustrationBg}>
                 {item.iconSet === "Ionicons" ? (
                   <Ionicons name={item.icon as never} size={80} color={Colors.white} />
@@ -165,7 +165,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   illustrationContainer: {
-    width: width - 48,
     height: 280,
     borderRadius: 24,
     backgroundColor: Colors.primary,

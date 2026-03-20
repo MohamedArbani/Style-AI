@@ -9,21 +9,24 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@workspace/db": "workspace:*",
+    "@ai-sdk/huggingface": "^1.0.37",
+    "@ai-sdk/openai-compatible": "^2.0.35",
     "@workspace/api-zod": "workspace:*",
-    "drizzle-orm": "catalog:",
-    "express": "^5",
+    "@workspace/db": "workspace:*",
+    "ai": "^6.0.116",
+    "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2",
-    "openai": "^4.104.0",
-    "bcryptjs": "^3.0.2"
+    "drizzle-orm": "catalog:",
+    "express": "^5",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "catalog:",
-    "@types/express": "^5.0.6",
-    "@types/cors": "^2.8.19",
-    "@types/cookie-parser": "^1.4.10",
     "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "catalog:",
     "esbuild": "^0.27.3",
     "tsx": "catalog:"
   }

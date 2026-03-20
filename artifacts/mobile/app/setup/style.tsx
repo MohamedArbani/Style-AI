@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
@@ -52,19 +53,19 @@ export default function StyleSetupScreen() {
       </View>
 
       <View style={styleSheet.progressBar}>
-        <View style={[styleSheet.progressFill, { width: "80%" }]} />
+        <View style={[styleSheet.progressFill, { width: "100%" }]} />
       </View>
 
       <View style={styleSheet.subheader}>
-        <Text style={styleSheet.stepLabel}>Step 2: Your Aesthetic</Text>
-        <Text style={styleSheet.stepNum}>2 of 5</Text>
+        <Text style={styleSheet.stepLabel}>Step 5: Your Aesthetic</Text>
+        <Text style={styleSheet.stepNum}>5 of 5</Text>
       </View>
 
       <ScrollView style={styleSheet.scroll} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
         <Text style={styleSheet.title}>What&apos;s your outfit vibe?</Text>
         <Text style={styleSheet.subtitle}>Select 3 or more styles to tailor your personalized fashion feed.</Text>
 
-        <View style={styleSheet.grid}>
+        <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styleSheet.grid}>
           {styles_list.map(style => {
             const isSelected = selected.includes(style.id);
             return (
@@ -89,7 +90,7 @@ export default function StyleSetupScreen() {
               </Pressable>
             );
           })}
-        </View>
+        </Animated.View>
       </ScrollView>
 
       <View style={styleSheet.footer}>

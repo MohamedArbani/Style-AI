@@ -1,12 +1,14 @@
 import { Router, type IRouter } from "express";
-import { db, wardrobeItemsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { db, wardrobeItemsTable, eq, and } from "@workspace/db";
 
 const router: IRouter = Router();
 
 router.get("/wardrobe/items", async (req, res) => {
   try {
-    const { userId, category } = req.query as { userId?: string; category?: string };
+    const { userId, category } = req.query as {
+      userId?: string;
+      category?: string;
+    };
     if (!userId) {
       res.status(400).json({ error: "userId is required" });
       return;
@@ -20,10 +22,12 @@ router.get("/wardrobe/items", async (req, res) => {
       .from(wardrobeItemsTable)
       .where(and(...conditions))
       .orderBy(wardrobeItemsTable.createdAt);
-    res.json(items.map(item => ({
-      ...item,
-      createdAt: item.createdAt.toISOString(),
-    })));
+    res.json(
+      items.map((item) => ({
+        ...item,
+        createdAt: item.createdAt.toISOString(),
+      })),
+    );
   } catch (err) {
     console.error("Error getting wardrobe items:", err);
     res.status(500).json({ error: "Failed to get wardrobe items" });
@@ -32,14 +36,36 @@ router.get("/wardrobe/items", async (req, res) => {
 
 router.post("/wardrobe/items", async (req, res) => {
   try {
-    const { userId, name, category, color, season, brand, notes, imageUrl, tags } = req.body;
+    const {
+      userId,
+      name,
+      category,
+      color,
+      season,
+      brand,
+      notes,
+      imageUrl,
+      tags,
+    } = req.body;
     if (!userId || !name || !category || !color) {
-      res.status(400).json({ error: "userId, name, category, and color are required" });
+      res
+        .status(400)
+        .json({ error: "userId, name, category, and color are required" });
       return;
     }
     const [item] = await db
       .insert(wardrobeItemsTable)
-      .values({ userId, name, category, color, season, brand, notes, imageUrl, tags: tags || [] })
+      .values({
+        userId,
+        name,
+        category,
+        color,
+        season,
+        brand,
+        notes,
+        imageUrl,
+        tags: tags || [],
+      })
       .returning();
     res.status(201).json({ ...item, createdAt: item.createdAt.toISOString() });
   } catch (err) {

@@ -4,7 +4,7 @@
 
 Smart Wardrobe AI is a **pnpm monorepo** (TypeScript 5.9) consisting of:
 
-- An **Express 5 API server** with PostgreSQL + Drizzle ORM and OpenAI integration
+- An **Express 5 API server** with PostgreSQL + Drizzle ORM and OpenRouter AI integration (via Vercel AI SDK)
 - An **Expo / React Native mobile app** (Expo SDK ~54, React Native 0.81.5) with AI outfit scanning, recommendations, and virtual try-on
 
 ## Monorepo Structure
@@ -24,19 +24,19 @@ scripts/               @workspace/scripts      — Utility scripts
 
 ## Tech Stack
 
-| Layer           | Technology                                            |
-| --------------- | ----------------------------------------------------- |
-| Package manager | pnpm 10 workspaces                                    |
-| Language        | TypeScript 5.9 (composite projects)                   |
-| API             | Express 5, Zod validation, bcryptjs auth              |
-| Database        | PostgreSQL, Drizzle ORM (`drizzle-orm ^0.45`)         |
-| AI              | OpenAI SDK (`openai ^4`) — GPT-4o vision, gpt-image-1 |
-| Mobile          | Expo ~54, React Native 0.81.5, Expo Router ~6         |
-| Navigation      | Expo Router (file-based), native tabs                 |
-| State           | React Context + `@tanstack/react-query ^5`            |
-| Validation      | Zod v4 (`zod/v4`) + `drizzle-zod`                     |
-| API codegen     | Orval v8 (from OpenAPI spec)                          |
-| Build           | esbuild (CJS bundle for API)                          |
+| Layer           | Technology                                                                  |
+| --------------- | --------------------------------------------------------------------------- |
+| Package manager | pnpm 10 workspaces                                                          |
+| Language        | TypeScript 5.9 (composite projects)                                         |
+| API             | Express 5, Zod validation, bcryptjs auth                                    |
+| Database        | PostgreSQL, Drizzle ORM (`drizzle-orm ^0.45`)                               |
+| AI              | Vercel AI SDK (`ai`) + `@ai-sdk/openai-compatible` — OpenRouter free models |
+| Mobile          | Expo ~54, React Native 0.81.5, Expo Router ~6                               |
+| Navigation      | Expo Router (file-based), native tabs                                       |
+| State           | React Context + `@tanstack/react-query ^5`                                  |
+| Validation      | Zod v4 (`zod/v4`) + `drizzle-zod`                                           |
+| API codegen     | Orval v8 (from OpenAPI spec)                                                |
+| Build           | esbuild (CJS bundle for API)                                                |
 
 ## Key Conventions
 
@@ -53,7 +53,7 @@ scripts/               @workspace/scripts      — Utility scripts
 - Every route file exports a `Router`; all are mounted in `src/routes/index.ts` under `/api`
 - Use `@workspace/api-zod` generated schemas for request validation
 - Use `@workspace/db` for all database access (never raw SQL)
-- OpenAI client: `new OpenAI({ baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL, apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY })`
+- AI client: OpenRouter via `createOpenAICompatible` from `@ai-sdk/openai-compatible`; use `generateText` from `ai` for all AI calls
 - Body size limit is `20mb` (for base64 image payloads)
 - `PORT` env var is required and validated on startup
 
@@ -99,8 +99,8 @@ Critical variables:
 
 - `PORT` — API server port (default 3000 locally)
 - `DATABASE_URL` — PostgreSQL connection string
-- `AI_INTEGRATIONS_OPENAI_API_KEY` — OpenAI API key
-- `AI_INTEGRATIONS_OPENAI_BASE_URL` — OpenAI base URL (default `https://api.openai.com/v1`)
+- `OPENROUTER_API_KEY` — OpenRouter API key (get free at https://openrouter.ai/keys)
+- `HUGGINGFACE_API_KEY` — HuggingFace API token for image generation (get free at https://huggingface.co/settings/tokens)
 - `EXPO_PUBLIC_API_URL` — Full URL the mobile app calls (e.g. `http://localhost:3000`)
 
 ## Local Development Commands
@@ -130,9 +130,11 @@ pnpm run build
 
 ## AI Features
 
-1. **Clothing Scan** (`POST /api/wardrobe/scan`) — sends base64 image to GPT-4o vision, returns `{name, category, color, season, tags}`
-2. **Outfit Recommendations** (`POST /api/outfits/recommend`) — sends wardrobe items to GPT-4o, returns 3 outfit objects
-3. **Virtual Try-On** (`POST /api/ai/try-on`) — sends user photo + selected items to `gpt-image-1`, returns `{imageBase64, description}`
+All AI calls use the Vercel AI SDK (`generateText` from `ai`) with OpenRouter free models via `@ai-sdk/openai-compatible`.
+
+1. **Clothing Scan** (`POST /api/wardrobe/scan`) — sends base64 image to a vision model (`google/gemma-3-27b-it:free`), returns `{name, category, color, season, tags}`
+2. **Outfit Recommendations** (`POST /api/outfits/recommend`) — sends wardrobe items to a text model (`meta-llama/llama-3.3-70b-instruct:free`), returns 3 outfit objects
+3. **Virtual Try-On** (`POST /api/ai/try-on`) — sends selected item descriptions to `black-forest-labs/FLUX.1-schnell` via HuggingFace Inference API, returns `{imageBase64, description}`
 
 ## File Naming Conventions
 

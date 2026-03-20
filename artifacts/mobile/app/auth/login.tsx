@@ -18,7 +18,7 @@ import { useToast } from "@/components/Toast";
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { login, isOnboarded } = useAuth();
+  const { login } = useAuth();
   const toast = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -45,11 +45,6 @@ export default function LoginScreen() {
     try {
       await login(email.trim(), password);
       toast.success("Welcome back!");
-      if (isOnboarded) {
-        router.replace("/(tabs)");
-      } else {
-        router.replace("/setup/language");
-      }
     } catch {
       toast.error("Sign in failed. Please check your credentials.");
     } finally {
@@ -68,9 +63,13 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={Colors.text} />
-        </Pressable>
+        {router.canGoBack() ? (
+          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={24} color={Colors.text} />
+          </Pressable>
+        ) : (
+          <View style={styles.backBtn} />
+        )}
 
         <Text style={styles.appName}>SMART WARDROBE AI</Text>
 

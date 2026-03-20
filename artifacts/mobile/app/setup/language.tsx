@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
@@ -42,16 +43,18 @@ export default function LanguageSetupScreen() {
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={Colors.text} />
-        </Pressable>
-        <Text style={styles.stepLabel}>STEP 1 OF 3</Text>
+        <View style={{ width: 24 }} />
+        <Text style={styles.stepLabel}>STEP 1 OF 5</Text>
         <View style={{ width: 24 }} />
       </View>
 
-      <View style={styles.iconWrap}>
-        <Ionicons name="language" size={32} color={Colors.primary} />
+      <View style={styles.progressBar}>
+        <View style={[styles.progressFill, { width: "20%" }]} />
       </View>
+
+      <Animated.View entering={FadeInDown.delay(50).duration(400)} style={styles.iconWrap}>
+        <Ionicons name="language" size={32} color={Colors.primary} />
+      </Animated.View>
 
       <Text style={styles.title}>Choose your language</Text>
       <Text style={styles.subtitle}>Select your preferred language to customize your AI stylist experience.</Text>
@@ -196,5 +199,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textTertiary,
     textAlign: "center",
+  },
+  progressBar: {
+    height: 3,
+    backgroundColor: Colors.border,
+    marginHorizontal: 20,
+    borderRadius: 2,
+    marginBottom: 16,
+  },
+  progressFill: {
+    height: 3,
+    backgroundColor: Colors.primary,
+    borderRadius: 2,
   },
 });

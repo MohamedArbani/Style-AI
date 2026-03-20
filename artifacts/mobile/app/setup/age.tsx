@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
@@ -35,14 +36,14 @@ export default function AgeSetupScreen() {
           <Ionicons name="chevron-back" size={24} color={Colors.text} />
         </Pressable>
         <View style={styles.stepWrap}>
-          <Text style={styles.stepNum}>STEP 2 OF 5</Text>
+          <Text style={styles.stepNum}>STEP 3 OF 5</Text>
           <Text style={styles.stepTitle}>Personalizing your profile</Text>
         </View>
         <View style={{ width: 24 }} />
       </View>
 
       <View style={styles.progressBar}>
-        <View style={[styles.progressFill, { width: "40%" }]} />
+        <View style={[styles.progressFill, { width: "60%" }]} />
       </View>
 
       <View style={styles.iconWrap}>
@@ -53,7 +54,7 @@ export default function AgeSetupScreen() {
         <Text style={styles.title}>What&apos;s your age range?</Text>
         <Text style={styles.subtitle}>This helps our AI understand your style maturity and curate a wardrobe that evolves with you.</Text>
 
-        <View style={styles.options}>
+        <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.options}>
           {ranges.map(r => (
             <Pressable
               key={r.id}
@@ -69,7 +70,7 @@ export default function AgeSetupScreen() {
               </View>
             </Pressable>
           ))}
-        </View>
+        </Animated.View>
       </ScrollView>
 
       <View style={styles.footer}>

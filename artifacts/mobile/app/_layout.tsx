@@ -24,21 +24,22 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   const { user, isLoading, isOnboarded } = useAuth();
+  const userId = user?.id;
 
   useEffect(() => {
-    if (!isLoading) {
-      if (!user) {
-        router.replace("/onboarding");
-      } else if (!isOnboarded) {
-        router.replace("/setup/language");
-      } else {
-        router.replace("/(tabs)");
-      }
+    if (isLoading) return;
+    if (!userId) {
+      router.replace("/onboarding");
+    } else if (!isOnboarded) {
+      router.replace("/setup/language");
+    } else {
+      router.replace("/(tabs)");
     }
-  }, [user, isLoading, isOnboarded]);
+  }, [userId, isLoading, isOnboarded]);
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
+      <Stack.Screen name="(tabs)" />
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="auth/login" />
       <Stack.Screen name="auth/register" />
@@ -47,9 +48,8 @@ function RootLayoutNav() {
       <Stack.Screen name="setup/age" />
       <Stack.Screen name="setup/height" />
       <Stack.Screen name="setup/style" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="wardrobe/add" options={{ presentation: "modal" }} />
-      <Stack.Screen name="premium" options={{ presentation: "modal" }} />
+      <Stack.Screen name="wardrobe/add" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+      <Stack.Screen name="premium" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
     </Stack>
   );
 }

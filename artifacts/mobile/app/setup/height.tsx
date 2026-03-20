@@ -2,19 +2,18 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-  Dimensions,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
-
-const { width } = Dimensions.get("window");
 
 const MIN_CM = 140;
 const MAX_CM = 220;
@@ -24,6 +23,7 @@ const ticks = Array.from({ length: MAX_CM - MIN_CM + 1 }, (_, i) => MIN_CM + i);
 export default function HeightSetupScreen() {
   const insets = useSafeAreaInsets();
   const { updateProfile } = useAuth();
+  const { width } = useWindowDimensions();
   const [unit, setUnit] = useState<"cm" | "ft">("cm");
   const [height, setHeight] = useState(175);
 
@@ -51,7 +51,7 @@ export default function HeightSetupScreen() {
           <Ionicons name="chevron-back" size={24} color={Colors.text} />
         </Pressable>
         <View style={styles.stepWrap}>
-          <Text style={styles.stepNum}>STEP 3 OF 5</Text>
+          <Text style={styles.stepNum}>STEP 4 OF 5</Text>
           <Text style={styles.stepTitle}>Body Measurements</Text>
         </View>
         <Pressable onPress={handleContinue}>
@@ -60,9 +60,9 @@ export default function HeightSetupScreen() {
       </View>
 
       <View style={styles.progressBar}>
-        <View style={[styles.progressFill, { width: "60%" }]} />
+        <View style={[styles.progressFill, { width: "80%" }]} />
       </View>
-      <Text style={styles.progressPct}>60%</Text>
+      <Text style={styles.progressPct}>80%</Text>
 
       <View style={styles.iconWrap}>
         <Ionicons name="resize" size={28} color={Colors.primary} />

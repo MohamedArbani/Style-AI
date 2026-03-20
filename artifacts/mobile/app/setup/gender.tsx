@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
@@ -41,13 +42,13 @@ export default function GenderSetupScreen() {
         </Pressable>
         <View style={styles.progressWrap}>
           <Text style={styles.progressLabel}>Profile Setup</Text>
-          <Text style={styles.stepLabel}>Step 1 of 4</Text>
+          <Text style={styles.stepLabel}>Step 2 of 5</Text>
         </View>
         <View style={{ width: 24 }} />
       </View>
 
       <View style={styles.progressBar}>
-        <View style={[styles.progressFill, { width: "25%" }]} />
+        <View style={[styles.progressFill, { width: "40%" }]} />
       </View>
 
       <ScrollView
@@ -58,7 +59,7 @@ export default function GenderSetupScreen() {
         <Text style={styles.title}>Select your gender</Text>
         <Text style={styles.subtitle}>This helps our AI curate the best style recommendations and fit algorithms specifically for you.</Text>
 
-        <View style={styles.options}>
+        <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.options}>
           {genders.map(g => (
             <Pressable
               key={g.id}
@@ -79,12 +80,12 @@ export default function GenderSetupScreen() {
               )}
             </Pressable>
           ))}
-        </View>
+        </Animated.View>
 
-        <View style={styles.aiBadge}>
+        <Animated.View entering={FadeInDown.delay(300).duration(400)} style={styles.aiBadge}>
           <MaterialCommunityIcons name="auto-fix" size={22} color={Colors.primary} />
           <Text style={styles.aiBadgeText}>AI adapts to your choices instantly</Text>
-        </View>
+        </Animated.View>
       </ScrollView>
 
       <View style={styles.footer}>

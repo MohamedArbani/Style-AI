@@ -1,23 +1,54 @@
 import { Router, type IRouter } from "express";
-import OpenAI from "openai";
-import { db, wardrobeItemsTable, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { generateText } from "ai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { z } from "zod";
+import { db, wardrobeItemsTable, usersTable, eq } from "@workspace/db";
 
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+const openrouter = createOpenAICompatible({
+  name: "openrouter",
+  baseURL: "https://openrouter.ai/api/v1",
+  apiKey: process.env.OPENROUTER_API_KEY,
 });
+
+// Free vision model for clothing scan
+const VISION_MODEL = "google/gemma-3-27b-it:free";
+// Free text model for outfit recommendations
+const TEXT_MODEL = "openrouter/free";
+// Free image generation model via HuggingFace Inference API
+const HF_IMAGE_MODEL = "black-forest-labs/FLUX.1-schnell";
 
 const router: IRouter = Router();
 
 async function getUserPreferences(userId: string) {
   try {
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1);
     return user || null;
   } catch {
     return null;
   }
 }
+
+const scanSchema = z.object({
+  name: z.string().describe('Short descriptive name, e.g. "White Linen Shirt"'),
+  category: z.enum([
+    "Tops & T-shirts",
+    "Shirts",
+    "Jackets & Coats",
+    "Bottoms",
+    "Dresses",
+    "Shoes",
+    "Accessories",
+    "Sportswear",
+    "Outerwear",
+  ]),
+  color: z.string().describe('Primary color name, e.g. "Navy Blue"'),
+  season: z.enum(["Spring", "Summer", "Autumn", "Winter", "All Season"]),
+  tags: z.array(z.string()).min(2).max(4).describe("2-4 descriptive tags"),
+});
 
 router.post("/wardrobe/scan", async (req, res) => {
   try {
@@ -32,40 +63,36 @@ router.post("/wardrobe/scan", async (req, res) => {
       ? `The user's style preferences are: ${userPrefs.stylePreferences.join(", ")}.`
       : "";
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      max_tokens: 1024,
+    const result = await generateText({
+      model: openrouter(VISION_MODEL),
       messages: [
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: `Analyze this clothing item image and return a JSON object with these fields:
-- name: short descriptive name (e.g. "White Linen Shirt", "Slim Fit Jeans")
-- category: one of ["Tops & T-shirts", "Shirts", "Jackets & Coats", "Bottoms", "Dresses", "Shoes", "Accessories", "Sportswear", "Outerwear"]
-- color: primary color name (e.g. "White", "Navy Blue", "Beige")
-- season: one of ["Spring", "Summer", "Autumn", "Winter", "All Season"]
-- tags: array of 2-4 descriptive tags (e.g. ["Casual", "Cotton", "Classic"])
+              text: `Analyze this clothing item image.
 ${styleContext}
-
+Return a JSON object with: name, category, color, season, tags.
+Categories: "Tops & T-shirts", "Shirts", "Jackets & Coats", "Bottoms", "Dresses", "Shoes", "Accessories", "Sportswear", "Outerwear".
+Seasons: "Spring", "Summer", "Autumn", "Winter", "All Season".
 Return ONLY valid JSON, nothing else.`,
             },
             {
-              type: "image_url",
-              image_url: {
-                url: `data:image/jpeg;base64,${imageBase64}`,
-              },
+              type: "image",
+              image: imageBase64,
             },
           ],
         },
       ],
+      maxOutputTokens: 1024,
     });
 
-    const text = response.choices[0]?.message?.content ?? "{}";
+    const text = result.text;
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
-    res.json(parsed);
+    const raw = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+    const parsed = scanSchema.safeParse(raw);
+    res.json(parsed.success ? parsed.data : raw);
   } catch (err) {
     console.error("Error scanning clothing:", err);
     res.status(500).json({ error: "Failed to scan clothing" });
@@ -77,7 +104,10 @@ router.post("/outfits/recommend", async (req, res) => {
     const { userId, occasion, weather } = req.body;
 
     const items = userId
-      ? await db.select().from(wardrobeItemsTable).where(eq(wardrobeItemsTable.userId, userId))
+      ? await db
+          .select()
+          .from(wardrobeItemsTable)
+          .where(eq(wardrobeItemsTable.userId, userId))
       : [];
 
     if (items.length === 0) {
@@ -87,16 +117,31 @@ router.post("/outfits/recommend", async (req, res) => {
 
     const userPrefs = userId ? await getUserPreferences(userId) : null;
     const itemsList = items
-      .map(item => `- ${item.name} (${item.category}, ${item.color}, ${item.season || "All Season"})`)
+      .map(
+        (item: {
+          name: string;
+          category: string;
+          color: string;
+          season: string | null;
+        }) =>
+          `- ${item.name} (${item.category}, ${item.color}, ${item.season || "All Season"})`,
+      )
       .join("\n");
 
     const styleContext = userPrefs?.stylePreferences?.length
       ? `User's style preferences: ${userPrefs.stylePreferences.join(", ")}`
       : "";
-    const genderContext = userPrefs?.gender ? `User gender: ${userPrefs.gender}` : "";
-    const ageContext = userPrefs?.ageRange ? `Age range: ${userPrefs.ageRange}` : "";
+    const genderContext = userPrefs?.gender
+      ? `User gender: ${userPrefs.gender}`
+      : "";
+    const ageContext = userPrefs?.ageRange
+      ? `Age range: ${userPrefs.ageRange}`
+      : "";
 
-    const prompt = `You are a professional fashion stylist. Based on the user's wardrobe, create 3 outfit recommendations.
+    const result = await generateText({
+      model: openrouter(TEXT_MODEL),
+      maxOutputTokens: 2048,
+      prompt: `You are a professional fashion stylist. Based on the user's wardrobe, create 3 outfit recommendations.
 
 User's wardrobe:
 ${itemsList}
@@ -120,30 +165,44 @@ Return a JSON array of exactly 3 outfit objects:
   }
 ]
 
-Choose items that go well together. matchScore is 0-100. Return ONLY valid JSON array.`;
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      max_tokens: 2048,
-      messages: [{ role: "user", content: prompt }],
+Choose items that go well together. matchScore is 0-100. Return ONLY valid JSON array.`,
     });
 
-    const text = response.choices[0]?.message?.content ?? "[]";
+    const text = result.text;
     const jsonMatch = text.match(/\[[\s\S]*\]/);
-    const outfits = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+    const outfits: {
+      id: string;
+      name: string;
+      description: string;
+      itemNames: string[];
+      occasion: string;
+      matchScore: number;
+      tags: string[];
+    }[] = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
 
-    const result = outfits.map((outfit: { id: string; name: string; description: string; itemNames: string[]; occasion: string; matchScore: number; tags: string[] }) => ({
+    const mapped = outfits.map((outfit) => ({
       ...outfit,
-      items: outfit.itemNames?.map((name: string) => {
-        const found = items.find(i =>
-          i.name.toLowerCase().includes(name.toLowerCase()) ||
-          name.toLowerCase().includes(i.name.toLowerCase())
-        );
-        return found ? { ...found, createdAt: found.createdAt.toISOString() } : null;
-      }).filter(Boolean) || [],
+      items:
+        outfit.itemNames
+          ?.map((name) => {
+            const found = items.find(
+              (i: { name: string }) =>
+                i.name.toLowerCase().includes(name.toLowerCase()) ||
+                name.toLowerCase().includes(i.name.toLowerCase()),
+            );
+            return found
+              ? {
+                  ...found,
+                  createdAt: (
+                    found as { createdAt: Date }
+                  ).createdAt.toISOString(),
+                }
+              : null;
+          })
+          .filter(Boolean) || [],
     }));
 
-    res.json(result);
+    res.json(mapped);
   } catch (err) {
     console.error("Error recommending outfits:", err);
     res.status(500).json({ error: "Failed to recommend outfits" });
@@ -154,40 +213,72 @@ router.post("/ai/try-on", async (req, res) => {
   try {
     const { userPhotoBase64, selectedItemIds, userId } = req.body;
     if (!userPhotoBase64 || !selectedItemIds?.length) {
-      res.status(400).json({ error: "userPhotoBase64 and selectedItemIds are required" });
+      res
+        .status(400)
+        .json({ error: "userPhotoBase64 and selectedItemIds are required" });
       return;
     }
 
     const items = userId
-      ? await db.select().from(wardrobeItemsTable).where(eq(wardrobeItemsTable.userId, userId))
+      ? await db
+          .select()
+          .from(wardrobeItemsTable)
+          .where(eq(wardrobeItemsTable.userId, userId))
       : [];
 
-    const selectedItems = items.filter(item => selectedItemIds.includes(item.id));
-    const itemDescriptions = selectedItems.length > 0
-      ? selectedItems.map(item => `${item.name} (${item.color} ${item.category})`).join(", ")
-      : "stylish modern outfit";
+    const selectedItems = items.filter((item: { id: string }) =>
+      selectedItemIds.includes(item.id),
+    );
+    const itemDescriptions =
+      selectedItems.length > 0
+        ? selectedItems
+            .map(
+              (item: { name: string; color: string; category: string }) =>
+                `${item.name} (${item.color} ${item.category})`,
+            )
+            .join(", ")
+        : "stylish modern outfit";
 
     const userPrefs = userId ? await getUserPreferences(userId) : null;
     const styleContext = userPrefs?.stylePreferences?.length
       ? ` with a ${userPrefs.stylePreferences.join(" and ")} aesthetic`
       : "";
 
-    const prompt = `Create a realistic fashion photo of a stylish person wearing: ${itemDescriptions}${styleContext}.
-Full-body fashion photograph, professional studio lighting, clean neutral background.
-All clothing items clearly visible, well-coordinated. Fashion magazine quality. Photorealistic.
-No text, letters, numbers, or watermarks anywhere in the image.`;
+    // Virtual try-on: generate an image using HuggingFace's free Inference API
+    const prompt = `Full-body fashion photo of a person wearing: ${itemDescriptions}${styleContext}. Professional studio lighting, clean neutral background, fashion magazine quality. All clothing items clearly visible and well-coordinated. Photorealistic. No text, letters, numbers, or watermarks.`;
 
-    const imageResponse = await openai.images.generate({
-      model: "gpt-image-1",
-      prompt,
-      size: "1024x1024",
-    });
-
-    const imageBase64 = imageResponse.data?.[0]?.b64_json;
-    if (!imageBase64) {
-      res.status(500).json({ error: "Failed to generate image" });
+    const hfApiKey = process.env.HUGGINGFACE_API_KEY;
+    if (!hfApiKey) {
+      res.status(500).json({ error: "HUGGINGFACE_API_KEY not configured" });
       return;
     }
+
+    const response = await fetch(
+      `https://router.huggingface.co/hf-inference/models/${HF_IMAGE_MODEL}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${hfApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ inputs: prompt }),
+      },
+    );
+
+    if (!response.ok) {
+      const errBody = await response.text();
+      console.error(
+        "HuggingFace image generation error:",
+        response.status,
+        errBody,
+      );
+      res.status(500).json({ error: "Failed to generate try-on image" });
+      return;
+    }
+
+    // HuggingFace Inference API returns raw image bytes
+    const imageBuffer = Buffer.from(await response.arrayBuffer());
+    const imageBase64 = imageBuffer.toString("base64");
 
     res.json({
       imageBase64,
@@ -195,7 +286,7 @@ No text, letters, numbers, or watermarks anywhere in the image.`;
     });
   } catch (err) {
     console.error("Error generating try-on:", err);
-    res.status(500).json({ error: "Failed to generate try-on image" });
+    res.status(500).json({ error: "Failed to generate try-on" });
   }
 });
 
