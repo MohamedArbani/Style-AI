@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { TabScreenHeader, TabScreenHeaderAction } from "@/components/TabScreenHeader";
 import { useToast } from "@/components/Toast";
 import { useWardrobe, WardrobeItem } from "@/context/WardrobeContext";
 
@@ -112,16 +113,28 @@ export default function TryOnScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topInset }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => {
-          setGeneratedImage(null);
-          if (generatedImage) toast.info("Preview cleared");
-        }}>
-          <Ionicons name="chevron-back" size={24} color={Colors.text} />
-        </Pressable>
-        <Text style={styles.headerTitle}>AI Try-On</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <TabScreenHeader
+        eyebrow="Virtual Try-On"
+        title="AI Try-On"
+        subtitle="Upload a photo, select pieces, and preview how your wardrobe comes together before you wear it."
+        badge={`${selectedIds.length}/5 selected`}
+        leading={<MaterialCommunityIcons name="hanger" size={20} color={Colors.primary} />}
+        trailing={
+          <TabScreenHeaderAction
+            onPress={() => {
+              setGeneratedImage(null);
+              if (generatedImage) {
+                toast.info("Preview cleared");
+              } else if (userPhoto) {
+                setUserPhoto(null);
+                toast.info("Photo removed");
+              }
+            }}
+          >
+            <Feather name="refresh-ccw" size={18} color={Colors.primary} />
+          </TabScreenHeaderAction>
+        }
+      />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: bottomInset }}>
         <Pressable style={styles.photoWrap} onPress={pickPhoto}>

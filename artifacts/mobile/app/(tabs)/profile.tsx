@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { TabScreenHeader, TabScreenHeaderAction } from "@/components/TabScreenHeader";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/context/AuthContext";
 import { useWardrobe } from "@/context/WardrobeContext";
@@ -63,15 +64,18 @@ export default function ProfileScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topInset }]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={Colors.text} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Profile</Text>
-        <Pressable onPress={() => handleComingSoon("Settings")}>
-          <Feather name="settings" size={22} color={Colors.text} />
-        </Pressable>
-      </View>
+      <TabScreenHeader
+        eyebrow="Account"
+        title="Profile"
+        subtitle={user?.email ?? "Manage your preferences, saved styles, and account settings in one place."}
+        badge={`${items.length} items`}
+        leading={<Text style={styles.headerInitials}>{initials}</Text>}
+        trailing={
+          <TabScreenHeaderAction onPress={() => handleComingSoon("Settings")}>
+            <Feather name="settings" size={20} color={Colors.primary} />
+          </TabScreenHeaderAction>
+        }
+      />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: bottomInset }}>
         <View style={styles.profileSection}>
@@ -152,6 +156,11 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  headerInitials: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 14,
+    color: Colors.primary,
+  },
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 20, paddingVertical: 12,

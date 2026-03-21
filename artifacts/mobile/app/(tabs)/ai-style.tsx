@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { TabScreenHeader, TabScreenHeaderAction } from "@/components/TabScreenHeader";
 import { useToast } from "@/components/Toast";
 import { useWardrobe, OutfitRecommendation } from "@/context/WardrobeContext";
 
@@ -128,17 +129,18 @@ export default function AIStyleScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topInset }]}>
-      <View style={styles.header}>
-        <Pressable>
-          <Feather name="menu" size={22} color={Colors.text} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Daily Recommendations</Text>
-        <Pressable onPress={() => toast.info("Notifications coming soon!")}>
-          <View style={styles.notifBtn}>
-            <Ionicons name="notifications-outline" size={22} color={Colors.text} />
-          </View>
-        </Pressable>
-      </View>
+      <TabScreenHeader
+        eyebrow="AI Style"
+        title="Daily Recommendations"
+        subtitle="Curated outfit ideas based on your wardrobe, the weather, and your style preferences."
+        badge={`${outfits.length} looks`}
+        leading={<Ionicons name="sparkles" size={20} color={Colors.primary} />}
+        trailing={
+          <TabScreenHeaderAction onPress={() => toast.info("Notifications coming soon!")}>
+            <Ionicons name="notifications-outline" size={20} color={Colors.primary} />
+          </TabScreenHeaderAction>
+        }
+      />
 
       <View style={styles.weatherCard}>
         <View style={styles.weatherLeft}>

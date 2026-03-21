@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { TabScreenHeader, TabScreenHeaderAction } from "@/components/TabScreenHeader";
 import { useToast } from "@/components/Toast";
 import { useWardrobe, WardrobeItem } from "@/context/WardrobeContext";
 
@@ -69,19 +70,20 @@ export default function WardrobeScreen() {
     return matchCat && matchSearch;
   });
 
-  return (
-    <View style={[styles.container, { paddingTop: topInset }]}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.avatar}>
-            <Feather name="user" size={18} color={Colors.primary} />
-          </View>
-          <Text style={styles.headerTitle}>My Wardrobe</Text>
-        </View>
-        <Pressable>
-          <Feather name="search" size={22} color={Colors.text} />
-        </Pressable>
-      </View>
+  const listHeader = (
+    <>
+      <TabScreenHeader
+        eyebrow="Wardrobe"
+        title="Wardrobe Studio"
+        subtitle="Organize pieces, filter fast, and keep your best looks within reach."
+        badge={`${items.length} pieces`}
+        leading={<MaterialCommunityIcons name="hanger" size={18} color={Colors.primary} />}
+        trailing={
+          <TabScreenHeaderAction onPress={() => router.push("/wardrobe/add")}>
+            <Ionicons name="add" size={18} color={Colors.primary} />
+          </TabScreenHeaderAction>
+        }
+      />
 
       <View style={styles.searchWrap}>
         <Feather name="search" size={16} color={Colors.textTertiary} />
@@ -92,11 +94,11 @@ export default function WardrobeScreen() {
           value={search}
           onChangeText={setSearch}
         />
-        {search.length > 0 && (
+        {search.length > 0 ? (
           <Pressable onPress={() => setSearch("")}>
             <Ionicons name="close-circle" size={18} color={Colors.textTertiary} />
           </Pressable>
-        )}
+        ) : null}
       </View>
 
       <ScrollView
@@ -105,7 +107,7 @@ export default function WardrobeScreen() {
         style={styles.catScroll}
         contentContainerStyle={styles.catScrollContent}
       >
-        {CATEGORIES.map(cat => (
+        {CATEGORIES.map((cat) => (
           <Pressable
             key={cat}
             style={[styles.catChip, activeCategory === cat && styles.catChipActive]}
@@ -115,25 +117,36 @@ export default function WardrobeScreen() {
           </Pressable>
         ))}
       </ScrollView>
+    </>
+  );
 
+  return (
+    <View style={[styles.container, { paddingTop: topInset }]}>
       {isLoading ? (
-        <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 60 }} />
+        <View style={styles.loadingWrap}>
+          {listHeader}
+          <ActivityIndicator size="large" color={Colors.primary} style={styles.loadingIndicator} />
+        </View>
       ) : filtered.length === 0 ? (
-        <View style={styles.empty}>
-          <MaterialCommunityIcons name="hanger" size={64} color={Colors.border} />
-          <Text style={styles.emptyTitle}>Your wardrobe is empty</Text>
-          <Text style={styles.emptySub}>Add your first clothing item to get started</Text>
-          <Pressable style={styles.emptyBtn} onPress={() => router.push("/wardrobe/add")}>
-            <Text style={styles.emptyBtnText}>Add Item</Text>
-          </Pressable>
+        <View style={styles.emptyScreen}>
+          {listHeader}
+          <View style={styles.empty}>
+            <MaterialCommunityIcons name="hanger" size={64} color={Colors.border} />
+            <Text style={styles.emptyTitle}>No matching pieces</Text>
+            <Text style={styles.emptySub}>Try another filter or add a new item to your wardrobe.</Text>
+            <Pressable style={styles.emptyBtn} onPress={() => router.push("/wardrobe/add")}>
+              <Text style={styles.emptyBtnText}>Add Item</Text>
+            </Pressable>
+          </View>
         </View>
       ) : (
         <FlatList
           data={filtered}
-          keyExtractor={item => item.id}
+          keyExtractor={(item) => item.id}
           numColumns={2}
           columnWrapperStyle={styles.row}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: bottomInset }}
+          contentContainerStyle={styles.listContent}
+          ListHeaderComponent={listHeader}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
             <WardrobeCard
@@ -163,14 +176,16 @@ const styles = StyleSheet.create({
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.surface, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontFamily: "Inter_700Bold", fontSize: 20, color: Colors.text },
+  loadingWrap: { flex: 1 },
+  loadingIndicator: { marginTop: 48 },
   searchWrap: {
     flexDirection: "row", alignItems: "center", gap: 10,
     backgroundColor: Colors.card, borderRadius: 12, borderWidth: 1, borderColor: Colors.border,
-    marginHorizontal: 16, paddingHorizontal: 14, height: 44, marginBottom: 12,
+    marginHorizontal: 16, paddingHorizontal: 14, height: 44, marginBottom: 10,
   },
   searchInput: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.text },
-  catScroll: { flexGrow: 0, marginBottom: 16 },
-  catScrollContent: { paddingHorizontal: 16, gap: 8 },
+  catScroll: { flexGrow: 0, marginBottom: 14, minHeight: 40 },
+  catScrollContent: { paddingHorizontal: 16, paddingVertical: 2, gap: 8, alignItems: "center" },
   catChip: {
     paddingHorizontal: 14, height: 34, borderRadius: 17,
     backgroundColor: Colors.card, borderWidth: 1.5, borderColor: Colors.border,
@@ -179,9 +194,11 @@ const styles = StyleSheet.create({
   catChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   catChipText: { fontFamily: "Inter_500Medium", fontSize: 13, color: Colors.textSecondary },
   catChipTextActive: { color: Colors.white, fontFamily: "Inter_600SemiBold" },
-  row: { gap: 12, marginBottom: 12 },
+  listContent: { paddingBottom: 140 },
+  row: { marginBottom: 12, justifyContent: "space-between", paddingHorizontal: 16 },
   card: {
-    flex: 1, backgroundColor: Colors.card, borderRadius: 16,
+    width: "48.3%",
+    backgroundColor: Colors.card, borderRadius: 16,
     overflow: "hidden", borderWidth: 1, borderColor: Colors.border,
   },
   cardImg: { width: "100%", aspectRatio: 1, resizeMode: "cover" },
@@ -189,6 +206,7 @@ const styles = StyleSheet.create({
   cardBody: { padding: 10, gap: 3 },
   cardName: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: Colors.text },
   cardMeta: { fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.textSecondary },
+  emptyScreen: { flex: 1 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   emptyTitle: { fontFamily: "Inter_600SemiBold", fontSize: 18, color: Colors.text },
   emptySub: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center", paddingHorizontal: 32 },
