@@ -1,4 +1,5 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -48,6 +49,7 @@ export default function WardrobeScreen() {
   const { items, isLoading, fetchItems, removeItem } = useWardrobe();
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
+  const hasNativeAddAction = isLiquidGlassAvailable();
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   // const bottomInset = Platform.OS === "web" ? 100 : insets.bottom + 10;
@@ -80,9 +82,11 @@ export default function WardrobeScreen() {
         badge={`${items.length} pieces`}
         leading={<MaterialCommunityIcons name="hanger" size={18} color={Colors.primary} />}
         trailing={
-          <TabScreenHeaderAction onPress={() => router.push("/wardrobe/add")}>
-            <Ionicons name="add" size={18} color={Colors.primary} />
-          </TabScreenHeaderAction>
+          hasNativeAddAction ? null : (
+            <TabScreenHeaderAction onPress={() => router.push("/wardrobe/add")}>
+              <Ionicons name="add" size={18} color={Colors.primary} />
+            </TabScreenHeaderAction>
+          )
         }
       />
 
@@ -152,12 +156,14 @@ export default function WardrobeScreen() {
         />
       )}
 
-      <Pressable
-        style={[styles.fab, { bottom: bottomInset }]}
-        onPress={() => router.push("/wardrobe/add")}
-      >
-        <Ionicons name="add" size={28} color={Colors.white} />
-      </Pressable>
+      {hasNativeAddAction ? null : (
+        <Pressable
+          style={[styles.fab, { bottom: bottomInset }]}
+          onPress={() => router.push("/wardrobe/add")}
+        >
+          <Ionicons name="add" size={28} color={Colors.white} />
+        </Pressable>
+      )}
     </View>
   );
 }

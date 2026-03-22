@@ -21,6 +21,7 @@ import Colors from "@/constants/colors";
 import { OptionPicker } from "@/components/OptionPicker";
 import { useToast } from "@/components/Toast";
 import { useWardrobe } from "@/context/WardrobeContext";
+import { getTabHref } from "@/utils/tab-navigation";
 
 const CATEGORIES = ["Tops & T-shirts", "Shirts", "Jackets & Coats", "Bottoms", "Dresses", "Shoes", "Accessories", "Sportswear", "Outerwear"];
 const SEASONS = ["Spring", "Summer", "Autumn", "Winter", "All Season"];
@@ -53,6 +54,15 @@ export default function AddItemScreen() {
   const [showSeasonPicker, setShowSeasonPicker] = useState(false);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
+
+  const closeScreen = () => {
+    const target = getTabHref();
+    if (router.canDismiss()) {
+      router.dismissTo(target);
+      return;
+    }
+    router.replace(target);
+  };
 
   const pickImage = async (fromCamera = false) => {
     let result;
@@ -130,7 +140,7 @@ export default function AddItemScreen() {
         : imageUri ?? undefined;
       await addItem({ name: name.trim(), category, color, season, brand, notes, tags, imageUrl });
       toast.success(`"${name}" added to your wardrobe!`);
-      router.back();
+      closeScreen();
     } catch {
       toast.error("Failed to save item. Please try again.");
     } finally {
@@ -142,7 +152,7 @@ export default function AddItemScreen() {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
       <View style={[styles.container, { paddingTop: Platform.OS === "ios" ? 0 : topInset }]}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()}>
+          <Pressable onPress={closeScreen}>
             <Ionicons name="chevron-back" size={24} color={Colors.text} />
           </Pressable>
           <Text style={styles.headerTitle}>Add to Wardrobe</Text>

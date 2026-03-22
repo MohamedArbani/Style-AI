@@ -7,10 +7,18 @@ import { MaterialCommunityIcons, Feather, Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import Colors from "@/constants/colors";
+import { setLastTabRouteName } from "@/utils/tab-navigation";
 
 function NativeTabLayout() {
   return (
     <NativeTabs
+      screenListeners={({ route }) => ({
+        focus: () => {
+          if (route.name !== "add-item") {
+            setLastTabRouteName(route.name);
+          }
+        },
+      })}
       labelStyle={{
         fontFamily: "Inter_500Medium",
         fontSize: 11,
@@ -19,10 +27,15 @@ function NativeTabLayout() {
         default: Colors.textTertiary,
         selected: Colors.primary,
       }}
+      minimizeBehavior="onScrollDown"
     >
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Icon sf="hanger" />
         <NativeTabs.Trigger.Label>Wardrobe</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="add-item" role="search" disablePopToTop disableScrollToTop>
+        <NativeTabs.Trigger.Icon sf={{ default: "plus", selected: "plus" }} />
+        <NativeTabs.Trigger.Label hidden>Add</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="ai-style">
         <NativeTabs.Trigger.Icon sf="sparkles" />
@@ -70,6 +83,12 @@ function ClassicTabLayout() {
         },
       }}
     >
+      <Tabs.Screen
+        name="add-item"
+        options={{
+          href: null,
+        }}
+      />
       <Tabs.Screen
         name="index"
         options={{
