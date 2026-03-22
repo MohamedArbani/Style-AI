@@ -29,12 +29,7 @@ function NativeTabLayout() {
         <NativeTabs.Trigger.Label>AI Style</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="try-on">
-        <NativeTabs.Trigger.Icon
-          sf={{
-            default: "person.crop.square.filled.and.at.rectangle",
-            selected: "person.crop.square.filled.and.at.rectangle.fill",
-          }}
-        />
+        <NativeTabs.Trigger.Icon sf="camera.aperture" />
         <NativeTabs.Trigger.Label>Try-On</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
@@ -105,7 +100,7 @@ function ClassicTabLayout() {
           title: "Try-On",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="person.crop.square" tintColor={color} size={24} />
+              <SymbolView name="camera.aperture" tintColor={color} size={24} />
             ) : (
               <Feather name="aperture" size={24} color={color} />
             ),

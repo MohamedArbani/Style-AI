@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
 import { useAuth } from "./AuthContext";
+import { getApiBase } from "@/utils/api";
 
 export type WardrobeItem = {
   id: string;
@@ -38,14 +39,6 @@ export type OutfitRecommendation = {
 
 const WardrobeContext = createContext<WardrobeContextType | null>(null);
 
-const getBaseUrl = () => {
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (apiUrl) return apiUrl;
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/api-server`;
-  return "";
-};
-
 export function WardrobeProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [items, setItems] = useState<WardrobeItem[]>([]);
@@ -57,7 +50,7 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
     try {
       const params = new URLSearchParams({ userId: user.id });
       if (category && category !== "All") params.set("category", category);
-      const res = await fetch(`${getBaseUrl()}/api/wardrobe/items?${params}`);
+      const res = await fetch(`${getApiBase()}/api/wardrobe/items?${params}`);
       if (res.ok) {
         const data = await res.json();
         setItems(data);
@@ -71,7 +64,7 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
 
   const addItem = useCallback(async (item: Omit<WardrobeItem, "id" | "userId" | "createdAt">) => {
     if (!user) throw new Error("Not authenticated");
-    const res = await fetch(`${getBaseUrl()}/api/wardrobe/items`, {
+    const res = await fetch(`${getApiBase()}/api/wardrobe/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...item, userId: user.id }),
@@ -83,12 +76,12 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   const removeItem = useCallback(async (id: string) => {
-    await fetch(`${getBaseUrl()}/api/wardrobe/items/${id}`, { method: "DELETE" });
+    await fetch(`${getApiBase()}/api/wardrobe/items/${id}`, { method: "DELETE" });
     setItems(prev => prev.filter(item => item.id !== id));
   }, []);
 
   const scanItem = useCallback(async (imageBase64: string) => {
-    const res = await fetch(`${getBaseUrl()}/api/wardrobe/scan`, {
+    const res = await fetch(`${getApiBase()}/api/wardrobe/scan`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageBase64, userId: user?.id }),
@@ -99,7 +92,7 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
 
   const recommendOutfits = useCallback(async (params?: { occasion?: string; weather?: string; stylePreferences?: string[] }) => {
     if (!user) return [];
-    const res = await fetch(`${getBaseUrl()}/api/outfits/recommend`, {
+    const res = await fetch(`${getApiBase()}/api/outfits/recommend`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId: user.id, ...params }),
@@ -110,7 +103,7 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
 
   const generateTryOn = useCallback(async (userPhotoBase64: string, selectedItemIds: string[]) => {
     if (!user) throw new Error("Not authenticated");
-    const res = await fetch(`${getBaseUrl()}/api/ai/try-on`, {
+    const res = await fetch(`${getApiBase()}/api/ai/try-on`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userPhotoBase64, selectedItemIds, userId: user.id }),

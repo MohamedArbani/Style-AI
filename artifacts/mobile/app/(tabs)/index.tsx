@@ -50,7 +50,8 @@ export default function WardrobeScreen() {
   const [search, setSearch] = useState("");
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const bottomInset = Platform.OS === "web" ? 84 : insets.bottom + 60;
+  // const bottomInset = Platform.OS === "web" ? 100 : insets.bottom + 10;
+  const bottomInset = Platform.select({ web: 100, android: insets.bottom + 60, default: insets.bottom + 10 });
 
   useFocusEffect(
     useCallback(() => {
@@ -122,22 +123,17 @@ export default function WardrobeScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topInset }]}>
+      {listHeader}
       {isLoading ? (
-        <View style={styles.loadingWrap}>
-          {listHeader}
-          <ActivityIndicator size="large" color={Colors.primary} style={styles.loadingIndicator} />
-        </View>
+        <ActivityIndicator size="large" color={Colors.primary} style={styles.loadingIndicator} />
       ) : filtered.length === 0 ? (
-        <View style={styles.emptyScreen}>
-          {listHeader}
-          <View style={styles.empty}>
-            <MaterialCommunityIcons name="hanger" size={64} color={Colors.border} />
-            <Text style={styles.emptyTitle}>No matching pieces</Text>
-            <Text style={styles.emptySub}>Try another filter or add a new item to your wardrobe.</Text>
-            <Pressable style={styles.emptyBtn} onPress={() => router.push("/wardrobe/add")}>
-              <Text style={styles.emptyBtnText}>Add Item</Text>
-            </Pressable>
-          </View>
+        <View style={[styles.empty, { paddingBottom: bottomInset }]}>
+          <MaterialCommunityIcons name="hanger" size={64} color={Colors.border} />
+          <Text style={styles.emptyTitle}>No matching pieces</Text>
+          <Text style={styles.emptySub}>Try another filter or add a new item to your wardrobe.</Text>
+          <Pressable style={styles.emptyBtn} onPress={() => router.push("/wardrobe/add")}>
+            <Text style={styles.emptyBtnText}>Add Item</Text>
+          </Pressable>
         </View>
       ) : (
         <FlatList
@@ -146,7 +142,6 @@ export default function WardrobeScreen() {
           numColumns={2}
           columnWrapperStyle={styles.row}
           contentContainerStyle={styles.listContent}
-          ListHeaderComponent={listHeader}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
             <WardrobeCard
@@ -176,7 +171,6 @@ const styles = StyleSheet.create({
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.surface, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontFamily: "Inter_700Bold", fontSize: 20, color: Colors.text },
-  loadingWrap: { flex: 1 },
   loadingIndicator: { marginTop: 48 },
   searchWrap: {
     flexDirection: "row", alignItems: "center", gap: 10,
@@ -206,7 +200,6 @@ const styles = StyleSheet.create({
   cardBody: { padding: 10, gap: 3 },
   cardName: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: Colors.text },
   cardMeta: { fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.textSecondary },
-  emptyScreen: { flex: 1 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   emptyTitle: { fontFamily: "Inter_600SemiBold", fontSize: 18, color: Colors.text },
   emptySub: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center", paddingHorizontal: 32 },

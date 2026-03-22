@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getApiBase } from "@/utils/api";
 
 export type UserProfile = {
   id: string;
@@ -28,14 +29,6 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const SESSION_KEY = "smart_wardrobe_session_v2";
-
-const getApiBase = () => {
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (apiUrl) return apiUrl;
-  const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/api-server`;
-  return "";
-};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);

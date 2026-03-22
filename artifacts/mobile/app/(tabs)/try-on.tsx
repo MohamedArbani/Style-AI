@@ -201,14 +201,23 @@ export default function TryOnScreen() {
           ))}
         </ScrollView>
 
-        {filteredItems.length === 0 ? (
-          <View style={styles.emptyItems}>
-            <MaterialCommunityIcons name="hanger" size={48} color={Colors.border} />
-            <Text style={styles.emptyItemsText}>No items in this category</Text>
-          </View>
-        ) : (
-          <View style={styles.itemGrid}>
-            {filteredItems.map(item => {
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.itemGrid}
+        >
+          <Pressable style={[styles.itemCard, styles.uploadCard]} onPress={pickPhoto}>
+            <Ionicons name="cloud-upload-outline" size={28} color={Colors.textSecondary} />
+            <Text style={styles.uploadCardText}>UPLOAD</Text>
+          </Pressable>
+
+          {filteredItems.length === 0 ? (
+            <View style={styles.emptyItems}>
+              <MaterialCommunityIcons name="hanger" size={48} color={Colors.border} />
+              <Text style={styles.emptyItemsText}>No items in this category</Text>
+            </View>
+          ) : (
+            filteredItems.map(item => {
               const isSelected = selectedIds.includes(item.id);
               return (
                 <Pressable
@@ -230,14 +239,9 @@ export default function TryOnScreen() {
                   )}
                 </Pressable>
               );
-            })}
-
-            <Pressable style={[styles.itemCard, styles.uploadCard]} onPress={pickPhoto}>
-              <Ionicons name="cloud-upload-outline" size={28} color={Colors.textSecondary} />
-              <Text style={styles.uploadCardText}>UPLOAD</Text>
-            </Pressable>
-          </View>
-        )}
+            })
+          )}
+        </ScrollView>
 
         <Pressable
           style={({ pressed }) => [styles.generateBtn, (isGenerating || selectedIds.length === 0) && styles.generateBtnDisabled, { opacity: pressed ? 0.85 : 1 }]}
@@ -321,9 +325,9 @@ const styles = StyleSheet.create({
   catChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   catChipText: { fontFamily: "Inter_500Medium", fontSize: 12, color: Colors.textSecondary },
   catChipTextActive: { color: Colors.white, fontFamily: "Inter_600SemiBold" },
-  itemGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, paddingHorizontal: 16, marginBottom: 20 },
+  itemGrid: { flexDirection: "row", gap: 10, paddingHorizontal: 16, marginBottom: 20, alignItems: "center" },
   itemCard: {
-    width: "30%", aspectRatio: 0.85, borderRadius: 14, overflow: "hidden",
+    width: 110, aspectRatio: 0.85, borderRadius: 14, overflow: "hidden",
     backgroundColor: Colors.card, borderWidth: 2, borderColor: Colors.border, position: "relative",
   },
   itemCardSelected: { borderColor: Colors.primary, borderWidth: 2.5 },
@@ -337,7 +341,7 @@ const styles = StyleSheet.create({
   },
   uploadCard: { alignItems: "center", justifyContent: "center", gap: 4, backgroundColor: Colors.surface, borderStyle: "dashed" },
   uploadCardText: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: Colors.textSecondary, letterSpacing: 0.5 },
-  emptyItems: { alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 32 },
+  emptyItems: { alignItems: "center", justifyContent: "center", gap: 10, padding: 20 },
   emptyItemsText: { fontFamily: "Inter_500Medium", fontSize: 14, color: Colors.textSecondary },
   generateBtn: {
     marginHorizontal: 16, borderRadius: 16, height: 54,

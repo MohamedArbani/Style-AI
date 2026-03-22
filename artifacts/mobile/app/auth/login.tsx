@@ -146,7 +146,7 @@ export default function LoginScreen() {
             </Pressable>
           </View>
 
-          <Pressable onPress={() => router.replace("/auth/register")}>
+          <Pressable onPress={() => router.push("/auth/register")}>
             <Text style={styles.signupLink}>
               Don&apos;t have an account? <Text style={styles.signupLinkBold}>Sign up now</Text>
             </Text>

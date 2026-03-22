@@ -27,32 +27,33 @@ export function TabScreenHeader({
   trailing,
 }: TabScreenHeaderProps) {
   return (
-    <View style={styles.wrapper}>
-      <LinearGradient
-        colors={["#FFFFFF", "#F3F6FF", "#EEF2FF"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.card}
-      >
-        <View style={styles.glow} />
-        <View style={styles.topRow}>
-          <View style={styles.topLeft}>
-            <View style={styles.leadingBadge}>{leading}</View>
-            {badge ? (
-              <View style={styles.metricBadge}>
-                <Text style={styles.metricBadgeText}>{badge}</Text>
-              </View>
-            ) : null}
-          </View>
-          {trailing ? <View>{trailing}</View> : null}
-        </View>
+    // <View style={styles.wrapper}>
+    //   <LinearGradient
+    //     colors={["#FFFFFF", "#F3F6FF", "#EEF2FF"]}
+    //     start={{ x: 0, y: 0 }}
+    //     end={{ x: 1, y: 1 }}
+    //     style={styles.card}
+    //   >
+    //     <View style={styles.glow} />
+    //     <View style={styles.topRow}>
+    //       <View style={styles.topLeft}>
+    //         <View style={styles.leadingBadge}>{leading}</View>
+    //         {badge ? (
+    //           <View style={styles.metricBadge}>
+    //             <Text style={styles.metricBadgeText}>{badge}</Text>
+    //           </View>
+    //         ) : null}
+    //       </View>
+    //       {trailing ? <View>{trailing}</View> : null}
+    //     </View>
 
-        <View style={styles.textBlock}>
-          <Text style={styles.eyebrow} numberOfLines={1}>{eyebrow}</Text>
-          <Text style={styles.title} numberOfLines={1}>{title}</Text>
-          <Text style={styles.subtitle} numberOfLines={2}>{subtitle}</Text>
-        </View>
-      </LinearGradient>
+    //   </LinearGradient>
+    // </View>
+    <View style={styles.wrapper}>
+      <View style={styles.leadingBadge}>{leading}</View>
+      {/* <Text style={styles.eyebrow} numberOfLines={1}>{eyebrow}</Text> */}
+      <Text style={styles.title} numberOfLines={1}>{title}</Text>
+      {/* <Text style={styles.subtitle} numberOfLines={2}>{subtitle}</Text> */}
     </View>
   );
 }
@@ -72,6 +73,9 @@ const styles = StyleSheet.create({
   wrapper: {
     paddingHorizontal: 16,
     paddingBottom: 12,
+    gap: 10,
+    flexDirection: "row",
+    alignItems: "center",
   },
   card: {
     borderRadius: 22,
