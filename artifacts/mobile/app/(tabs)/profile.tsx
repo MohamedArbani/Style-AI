@@ -1,5 +1,5 @@
 import { Feather, Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, Stack } from "expo-router";
 import React from "react";
 import {
   Platform,
@@ -10,6 +10,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GlassCard } from "@/components/GlassCard";
+import { AdaptiveGlassView } from "@/components/AdaptiveGlassView";
 import Colors from "@/constants/colors";
 import { TabScreenHeader, TabScreenHeaderAction } from "@/components/TabScreenHeader";
 import { useToast } from "@/components/Toast";
@@ -94,7 +96,7 @@ export default function ProfileScreen() {
           <Text style={styles.userEmail}>{user?.email ?? ""}</Text>
         </View>
 
-        <View style={styles.statsRow}>
+        <GlassCard style={styles.statsRow}>
           <View style={styles.stat}>
             <Text style={styles.statLabel}>TOTAL ITEMS</Text>
             <Text style={styles.statValue}>{items.length}</Text>
@@ -104,39 +106,39 @@ export default function ProfileScreen() {
             <Text style={styles.statLabel}>AI OUTFITS</Text>
             <Text style={styles.statValue}>0</Text>
           </View>
-        </View>
+        </GlassCard>
 
         <Text style={styles.sectionLabel}>ACCOUNT SETTINGS</Text>
-        <View style={styles.menuSection}>
+        <GlassCard style={styles.menuSection}>
           <MenuItem icon="user" label="Personal Information" onPress={() => handleComingSoon("Personal information")} />
           <View style={styles.separator} />
           <MenuItem icon="bell" label="Notifications" onPress={() => handleComingSoon("Notifications")} />
-        </View>
+        </GlassCard>
 
         <Text style={styles.sectionLabel}>STYLE PREFERENCES</Text>
-        <View style={styles.menuSection}>
+        <GlassCard style={styles.menuSection}>
           <MenuItem icon="sliders" label="Color Palette" onPress={() => handleComingSoon("Color palette settings")} />
           <View style={styles.separator} />
           <MenuItem icon="star" label="Style Preferences" onPress={() => router.push("/setup/style")} />
-        </View>
+        </GlassCard>
 
         <Text style={styles.sectionLabel}>APP</Text>
-        <View style={styles.menuSection}>
+        <GlassCard style={styles.menuSection}>
           <MenuItem icon="shield" label="Privacy & Security" onPress={() => handleComingSoon("Privacy & Security")} />
           <View style={styles.separator} />
           <MenuItem icon="help-circle" label="Help & Support" onPress={() => handleComingSoon("Help & Support")} />
           <View style={styles.separator} />
           <MenuItem icon="award" label="Upgrade to Pro" onPress={() => router.push("/premium")} />
-        </View>
+        </GlassCard>
 
         {user?.stylePreferences && user.stylePreferences.length > 0 && (
           <View style={styles.stylesSection}>
             <Text style={styles.sectionLabel}>YOUR STYLES</Text>
             <View style={styles.styleChips}>
               {user.stylePreferences.map(s => (
-                <View key={s} style={styles.styleChip}>
+                <AdaptiveGlassView key={s} style={styles.styleChip} fallbackTint="systemThinMaterial">
                   <Text style={styles.styleChipText}>{s.charAt(0).toUpperCase() + s.slice(1)}</Text>
-                </View>
+                </AdaptiveGlassView>
               ))}
             </View>
           </View>
@@ -150,6 +152,12 @@ export default function ProfileScreen() {
           <Text style={styles.logoutText}>Log Out</Text>
         </Pressable>
       </ScrollView>
+
+      {Platform.OS === "ios" ? (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Button icon="gear" onPress={() => handleComingSoon("Settings")} />
+        </Stack.Toolbar>
+      ) : null}
     </View>
   );
 }
@@ -185,8 +193,7 @@ const styles = StyleSheet.create({
   userEmail: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.textSecondary },
   statsRow: {
     flexDirection: "row", marginHorizontal: 16, marginBottom: 28,
-    backgroundColor: Colors.card, borderRadius: 16, padding: 20,
-    borderWidth: 1, borderColor: Colors.border,
+    borderRadius: 16, padding: 20,
   },
   stat: { flex: 1, alignItems: "center", gap: 6 },
   statLabel: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: Colors.textTertiary, letterSpacing: 0.5 },
@@ -198,8 +205,7 @@ const styles = StyleSheet.create({
   },
   menuSection: {
     marginHorizontal: 16, marginBottom: 20,
-    backgroundColor: Colors.card, borderRadius: 16, overflow: "hidden",
-    borderWidth: 1, borderColor: Colors.border,
+    borderRadius: 16, overflow: "hidden", padding: 0,
   },
   menuItem: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -217,8 +223,7 @@ const styles = StyleSheet.create({
   stylesSection: { marginBottom: 20 },
   styleChips: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 20 },
   styleChip: {
-    backgroundColor: Colors.surface, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7,
-    borderWidth: 1, borderColor: Colors.border,
+    borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7,
   },
   styleChipText: { fontFamily: "Inter_500Medium", fontSize: 13, color: Colors.primary },
   logoutBtn: {

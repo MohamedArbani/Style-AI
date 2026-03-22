@@ -1,7 +1,7 @@
-import { LinearGradient } from "expo-linear-gradient";
 import React, { type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
+import { AdaptiveGlassView } from "@/components/AdaptiveGlassView";
 import Colors from "@/constants/colors";
 
 type TabScreenHeaderProps = {
@@ -50,22 +50,24 @@ export function TabScreenHeader({
     //   </LinearGradient>
     // </View>
     <View style={styles.wrapper}>
-      <View style={styles.leadingBadge}>{leading}</View>
-      {/* <Text style={styles.eyebrow} numberOfLines={1}>{eyebrow}</Text> */}
+      <AdaptiveGlassView style={styles.leadingBadge} fallbackTint="systemThinMaterial">
+        {leading}
+      </AdaptiveGlassView>
       <Text style={styles.title} numberOfLines={1}>{title}</Text>
-      {/* <Text style={styles.subtitle} numberOfLines={2}>{subtitle}</Text> */}
     </View>
   );
 }
 
 export function TabScreenHeaderAction({ children, onPress }: TabScreenHeaderActionProps) {
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.actionButton, { opacity: pressed ? 0.78 : 1 }]}
-    >
-      {children}
-    </Pressable>
+    <AdaptiveGlassView isInteractive style={styles.actionButton} fallbackTint="systemThinMaterial">
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [styles.actionPressable, { opacity: pressed ? 0.78 : 1 }]}
+      >
+        {children}
+      </Pressable>
+    </AdaptiveGlassView>
   );
 }
 
@@ -134,11 +136,13 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 14,
+  },
+  actionPressable: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.86)",
-    borderWidth: 1,
-    borderColor: "rgba(232,234,255,0.96)",
   },
   textBlock: {
     gap: 4,

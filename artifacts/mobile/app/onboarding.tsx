@@ -12,6 +12,7 @@ import {
   ViewToken,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AdaptiveGlassView } from "@/components/AdaptiveGlassView";
 import Colors from "@/constants/colors";
 
 const slides = [
@@ -71,9 +72,9 @@ export default function OnboardingScreen() {
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
       <View style={styles.header}>
-        <View style={styles.logo}>
+        <AdaptiveGlassView style={styles.logo} fallbackTint="systemThinMaterial">
           <MaterialCommunityIcons name="hanger" size={20} color={Colors.primary} />
-        </View>
+        </AdaptiveGlassView>
         <Pressable onPress={handleSkip}>
           <Text style={styles.skipText}>Skip</Text>
         </Pressable>
@@ -99,10 +100,10 @@ export default function OnboardingScreen() {
                   <MaterialCommunityIcons name={item.icon as never} size={80} color={Colors.white} />
                 )}
               </View>
-              <View style={styles.badge}>
+              <AdaptiveGlassView style={styles.badge} fallbackTint="systemUltraThinMaterial">
                 <Ionicons name="checkmark-circle" size={14} color={Colors.white} />
                 <Text style={styles.badgeText}>{item.badge}</Text>
-              </View>
+              </AdaptiveGlassView>
             </View>
 
             <Text style={styles.title}>{item.title}</Text>
@@ -150,9 +151,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: Colors.surface,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
   skipText: {
     fontFamily: "Inter_600SemiBold",
@@ -189,10 +190,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(255,255,255,0.2)",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    overflow: "hidden",
   },
   badgeText: {
     fontFamily: "Inter_600SemiBold",

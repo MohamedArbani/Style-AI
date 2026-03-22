@@ -34,7 +34,11 @@ export default function PremiumScreen() {
   const insets = useSafeAreaInsets();
   const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">("yearly");
 
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
+  const topInset = Platform.select({
+    web: 67,
+    ios: 10,
+    default: insets.top,
+  });
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
   return (
@@ -96,7 +100,7 @@ export default function PremiumScreen() {
         </Pressable>
 
         <Pressable
-          style={[styles.planCard, styles.planCardFeatured, selectedPlan === "yearly" && styles.planCardSelected]}
+          style={[styles.planCard, selectedPlan === "yearly" && styles.planCardSelected]}
           onPress={() => setSelectedPlan("yearly")}
         >
           <View style={styles.planLeft}>
@@ -113,13 +117,11 @@ export default function PremiumScreen() {
               </View>
             </View>
           </View>
-          <View>
-            <View style={styles.saveBadge}>
-              <Text style={styles.saveBadgeText}>SAVE 33%</Text>
-            </View>
-            <View style={[styles.planRadio, selectedPlan === "yearly" && styles.planRadioSelected]}>
-              {selectedPlan === "yearly" && <View style={styles.planRadioDot} />}
-            </View>
+          <View style={[styles.planRadio, selectedPlan === "yearly" && styles.planRadioSelected]}>
+            {selectedPlan === "yearly" && <View style={styles.planRadioDot} />}
+          </View>
+          <View style={styles.saveBadge}>
+            <Text style={styles.saveBadgeText}>SAVE 33%</Text>
           </View>
         </Pressable>
 
@@ -175,6 +177,7 @@ const styles = StyleSheet.create({
   featureTitle: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: Colors.text, marginBottom: 3 },
   featureSub: { fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.textSecondary },
   planCard: {
+    position: "relative",
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     marginHorizontal: 16, borderRadius: 16, borderWidth: 2, borderColor: Colors.border,
     backgroundColor: Colors.card, padding: 18, marginBottom: 12,
@@ -195,6 +198,7 @@ const styles = StyleSheet.create({
   planRadioSelected: { borderColor: Colors.primary },
   planRadioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary },
   saveBadge: {
+    position: "absolute", top: 12, right: 12,
     backgroundColor: Colors.primary, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
     marginBottom: 8, alignItems: "center",
   },

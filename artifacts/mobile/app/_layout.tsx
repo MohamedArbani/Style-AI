@@ -6,6 +6,7 @@ import {
   useFonts,
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
@@ -20,7 +21,14 @@ import { WardrobeProvider } from "@/context/WardrobeContext";
 
 SplashScreen.preventAutoHideAsync();
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 min — avoid refetching on tab switches
+      retry: 2,
+    },
+  },
+});
 
 function RootLayoutNav() {
   const { user, isLoading, isOnboarded } = useAuth();
@@ -37,6 +45,8 @@ function RootLayoutNav() {
     }
   }, [userId, isLoading, isOnboarded]);
 
+  const glassSheets = isLiquidGlassAvailable();
+
   return (
     <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
       <Stack.Screen name="(tabs)" />
@@ -48,8 +58,39 @@ function RootLayoutNav() {
       <Stack.Screen name="setup/age" />
       <Stack.Screen name="setup/height" />
       <Stack.Screen name="setup/style" />
-      <Stack.Screen name="wardrobe/add" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
-      <Stack.Screen name="premium" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+      <Stack.Screen
+        name="wardrobe/[id]"
+        options={{
+          headerShown: true,
+          title: "Item Details",
+          headerTransparent: true,
+          headerBackButtonDisplayMode: "minimal",
+        }}
+      />
+      <Stack.Screen
+        name="wardrobe/add"
+        options={{
+          presentation: "modal",
+          animation: "slide_from_bottom",
+          ...(glassSheets ? { contentStyle: { backgroundColor: "transparent" } } : {}),
+        }}
+      />
+      <Stack.Screen
+        name="wardrobe/try-on-result"
+        options={{
+          headerShown: true,
+          title: "AI Outfit Preview",
+          animation: "default",
+        }}
+      />
+      <Stack.Screen
+        name="premium"
+        options={{
+          presentation: "modal",
+          animation: "slide_from_bottom",
+          ...(glassSheets ? { contentStyle: { backgroundColor: "transparent" } } : {}),
+        }}
+      />
     </Stack>
   );
 }

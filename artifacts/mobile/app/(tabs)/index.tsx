@@ -1,20 +1,24 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
-import { router, useFocusEffect } from "expo-router";
+import { Link, router, Stack } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
-  Image,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AdaptiveGlassView } from "@/components/AdaptiveGlassView";
+import { GlassButton } from "@/components/GlassButton";
 import Colors from "@/constants/colors";
 import { TabScreenHeader, TabScreenHeaderAction } from "@/components/TabScreenHeader";
 import { useToast } from "@/components/Toast";
@@ -22,31 +26,93 @@ import { useWardrobe, WardrobeItem } from "@/context/WardrobeContext";
 
 const CATEGORIES = ["All", "Tops & T-shirts", "Shirts", "Jackets & Coats", "Bottoms", "Dresses", "Shoes", "Accessories"];
 
+const useNativeUI = isLiquidGlassAvailable();
+const isIOS = Platform.OS === "ios";
+
 function WardrobeCard({ item, onDelete }: { item: WardrobeItem; onDelete: () => void }) {
-  return (
+  const handleOpen = () => {
+    router.push(`/wardrobe/${item.id}`);
+  };
+
+  const handleLongPress = () => {
+    if (Platform.OS === "web") {
+      return;
+    }
+
+    Alert.alert(item.name, "Choose an action", [
+      { text: "View Details", onPress: handleOpen },
+      { text: "Delete", style: "destructive", onPress: onDelete },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
+  const cardContent = (
     <Pressable
       style={styles.card}
-      onLongPress={onDelete}
+      onPress={!isIOS ? handleOpen : undefined}
+      onLongPress={!isIOS ? handleLongPress : undefined}
+      delayLongPress={220}
     >
       {item.imageUrl ? (
-        <Image source={{ uri: item.imageUrl }} style={styles.cardImg} />
+        <View style={styles.cardImgWrap}>
+          <Link.AppleZoom>
+            <Image source={{ uri: item.imageUrl }} style={styles.cardImg} contentFit="cover" />
+          </Link.AppleZoom>
+          {useNativeUI ? (
+            <AdaptiveGlassView
+              style={styles.cardGlassFooter}
+              fallbackTint="systemUltraThinMaterial"
+            >
+              <Text style={styles.cardNameGlass} numberOfLines={1}>{item.name}</Text>
+              <Text style={styles.cardMetaGlass} numberOfLines={1}>{item.color}{item.brand ? ` • ${item.brand}` : ""}</Text>
+            </AdaptiveGlassView>
+          ) : null}
+        </View>
       ) : (
         <View style={[styles.cardImg, styles.cardImgPlaceholder]}>
           <MaterialCommunityIcons name="hanger" size={40} color={Colors.border} />
         </View>
       )}
-      <View style={styles.cardBody}>
-        <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
-        <Text style={styles.cardMeta} numberOfLines={1}>{item.color}{item.brand ? ` • ${item.brand}` : ""}</Text>
-      </View>
+      {useNativeUI ? null : (
+        <View style={styles.cardBody}>
+          <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.cardMeta} numberOfLines={1}>{item.color}{item.brand ? ` • ${item.brand}` : ""}</Text>
+        </View>
+      )}
     </Pressable>
   );
+
+  if (isIOS) {
+    return (
+      <Link href={`/wardrobe/${item.id}` as `/wardrobe/${string}`} asChild>
+        <Link.Trigger>
+          {cardContent}
+        </Link.Trigger>
+        <Link.Preview />
+        <Link.Menu>
+          <Link.MenuAction
+            title="View Details"
+            icon="eye"
+            onPress={() => router.push(`/wardrobe/${item.id}`)}
+          />
+          <Link.MenuAction
+            title="Delete"
+            icon="trash"
+            destructive
+            onPress={onDelete}
+          />
+        </Link.Menu>
+      </Link>
+    );
+  }
+
+  return cardContent;
 }
 
 export default function WardrobeScreen() {
   const insets = useSafeAreaInsets();
   const toast = useToast();
-  const { items, isLoading, fetchItems, removeItem } = useWardrobe();
+  const { items, isLoading, removeItem, isRefetching, refetch } = useWardrobe();
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
   const hasNativeAddAction = isLiquidGlassAvailable();
@@ -54,12 +120,6 @@ export default function WardrobeScreen() {
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   // const bottomInset = Platform.OS === "web" ? 100 : insets.bottom + 10;
   const bottomInset = Platform.select({ web: 100, android: insets.bottom + 60, default: insets.bottom + 10 });
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchItems();
-    }, [fetchItems])
-  );
 
   const handleDelete = useCallback((item: WardrobeItem) => {
     removeItem(item.id)
@@ -90,7 +150,7 @@ export default function WardrobeScreen() {
         }
       />
 
-      <View style={styles.searchWrap}>
+      <AdaptiveGlassView style={styles.searchWrap} fallbackTint="systemThinMaterial">
         <Feather name="search" size={16} color={Colors.textTertiary} />
         <TextInput
           style={styles.searchInput}
@@ -104,7 +164,7 @@ export default function WardrobeScreen() {
             <Ionicons name="close-circle" size={18} color={Colors.textTertiary} />
           </Pressable>
         ) : null}
-      </View>
+      </AdaptiveGlassView>
 
       <ScrollView
         horizontal
@@ -147,6 +207,13 @@ export default function WardrobeScreen() {
           columnWrapperStyle={styles.row}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              tintColor={Colors.primary}
+            />
+          }
           renderItem={({ item }) => (
             <WardrobeCard
               item={item}
@@ -157,13 +224,19 @@ export default function WardrobeScreen() {
       )}
 
       {hasNativeAddAction ? null : (
-        <Pressable
-          style={[styles.fab, { bottom: bottomInset }]}
+        <GlassButton
+          style={{ ...styles.fab, bottom: bottomInset }}
           onPress={() => router.push("/wardrobe/add")}
         >
-          <Ionicons name="add" size={28} color={Colors.white} />
-        </Pressable>
+          <Ionicons name="add" size={28} color={isIOS ? Colors.primary : Colors.white} />
+        </GlassButton>
       )}
+
+      {isIOS ? (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Button icon="plus" onPress={() => router.push("/wardrobe/add")} />
+        </Stack.Toolbar>
+      ) : null}
     </View>
   );
 }
@@ -180,7 +253,7 @@ const styles = StyleSheet.create({
   loadingIndicator: { marginTop: 48 },
   searchWrap: {
     flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: Colors.card, borderRadius: 12, borderWidth: 1, borderColor: Colors.border,
+    borderRadius: 12,
     marginHorizontal: 16, paddingHorizontal: 14, height: 44, marginBottom: 10,
   },
   searchInput: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.text },
@@ -201,8 +274,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card, borderRadius: 16,
     overflow: "hidden", borderWidth: 1, borderColor: Colors.border,
   },
-  cardImg: { width: "100%", aspectRatio: 1, resizeMode: "cover" },
+  cardImgWrap: { position: "relative" },
+  cardImg: { width: "100%", aspectRatio: 1 },
   cardImgPlaceholder: { backgroundColor: Colors.surface, alignItems: "center", justifyContent: "center" },
+  cardGlassFooter: {
+    position: "absolute", bottom: 0, left: 0, right: 0,
+    paddingHorizontal: 10, paddingVertical: 8, gap: 2,
+  },
+  cardNameGlass: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: Colors.text },
+  cardMetaGlass: { fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.textSecondary },
   cardBody: { padding: 10, gap: 3 },
   cardName: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: Colors.text },
   cardMeta: { fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.textSecondary },

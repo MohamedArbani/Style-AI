@@ -16,6 +16,8 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AdaptiveGlassView } from "@/components/AdaptiveGlassView";
+import { GlassCard } from "@/components/GlassCard";
 import { ColorSwatchList } from "@/components/ColorSwatchList";
 import Colors from "@/constants/colors";
 import { OptionPicker } from "@/components/OptionPicker";
@@ -206,21 +208,22 @@ export default function AddItemScreen() {
                 {tags.map((tag, i) => (
                   <Pressable
                     key={i}
-                    style={styles.tag}
                     onPress={() => {
                       setTags(prev => prev.filter((_, idx) => idx !== i));
                       toast.info(`Tag "${tag}" removed`);
                     }}
                   >
-                    <Text style={styles.tagText}>{tag}</Text>
-                    <Ionicons name="close" size={12} color={Colors.textSecondary} />
+                    <AdaptiveGlassView style={styles.tag}>
+                      <Text style={styles.tagText}>{tag}</Text>
+                      <Ionicons name="close" size={12} color={Colors.textSecondary} />
+                    </AdaptiveGlassView>
                   </Pressable>
                 ))}
               </View>
             </View>
           )}
 
-          <View style={styles.form}>
+          <GlassCard style={styles.form}>
             <View style={styles.field}>
               <Text style={styles.fieldLabel}>Name</Text>
               <TextInput
@@ -287,9 +290,7 @@ export default function AddItemScreen() {
                 textAlignVertical="top"
               />
             </View>
-          </View>
-
-          <View style={{ height: 32 }} />
+          </GlassCard>
         </ScrollView>
       </View>
     </KeyboardAvoidingView>
@@ -328,11 +329,11 @@ const styles = StyleSheet.create({
   tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   tag: {
     flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: Colors.surface, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7,
-    borderWidth: 1, borderColor: Colors.border,
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7,
+    overflow: "hidden",
   },
   tagText: { fontFamily: "Inter_500Medium", fontSize: 13, color: Colors.text },
-  form: { paddingHorizontal: 16, gap: 16 },
+  form: { paddingHorizontal: 16, gap: 16, borderRadius: 16, padding: 16, marginBottom: 32 },
   field: { gap: 6 },
   optional: { fontFamily: "Inter_400Regular", color: Colors.textTertiary, fontSize: 12 },
   fieldLabel: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: Colors.text },

@@ -1,20 +1,15 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useCallback } from "react";
 import { useAuth } from "./AuthContext";
 import { getApiBase } from "@/utils/api";
+import {
+  useWardrobeItems,
+  useAddItem,
+  useRemoveItem,
+  useInvalidateWardrobe,
+} from "@/hooks/use-wardrobe-queries";
 
-export type WardrobeItem = {
-  id: string;
-  userId: string;
-  name: string;
-  category: string;
-  color: string;
-  season?: string;
-  brand?: string;
-  notes?: string;
-  imageUrl?: string;
-  tags?: string[];
-  createdAt: string;
-};
+export type { WardrobeItem, OutfitRecommendation } from "@/hooks/use-wardrobe-queries";
+import type { WardrobeItem, OutfitRecommendation } from "@/hooks/use-wardrobe-queries";
 
 type WardrobeContextType = {
   items: WardrobeItem[];
@@ -25,60 +20,47 @@ type WardrobeContextType = {
   scanItem: (imageBase64: string) => Promise<Partial<WardrobeItem>>;
   recommendOutfits: (params?: { occasion?: string; weather?: string; stylePreferences?: string[] }) => Promise<OutfitRecommendation[]>;
   generateTryOn: (userPhotoBase64: string, selectedItemIds: string[]) => Promise<{ imageBase64: string; description: string }>;
-};
-
-export type OutfitRecommendation = {
-  id: string;
-  name: string;
-  description: string;
-  items: WardrobeItem[];
-  occasion?: string;
-  matchScore: number;
-  tags?: string[];
+  /** Force revalidate the wardrobe items cache */
+  invalidate: () => void;
+  /** Whether a background refetch is in progress */
+  isRefetching: boolean;
+  /** Trigger a refetch (useful for pull-to-refresh) */
+  refetch: () => Promise<void>;
 };
 
 const WardrobeContext = createContext<WardrobeContextType | null>(null);
 
 export function WardrobeProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const [items, setItems] = useState<WardrobeItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
 
-  const fetchItems = useCallback(async (category?: string) => {
-    if (!user) return;
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams({ userId: user.id });
-      if (category && category !== "All") params.set("category", category);
-      const res = await fetch(`${getApiBase()}/api/wardrobe/items?${params}`);
-      if (res.ok) {
-        const data = await res.json();
-        setItems(data);
-      }
-    } catch (err) {
-      console.error("Error fetching items:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user]);
+  // TanStack Query — cached, deduplicated, stale-while-revalidate
+  const query = useWardrobeItems();
+  const addMutation = useAddItem();
+  const removeMutation = useRemoveItem();
+  const invalidate = useInvalidateWardrobe();
+
+  const items = query.data ?? [];
+  const isLoading = query.isLoading;
+  const isRefetching = query.isRefetching;
+
+  // Legacy compat — screens that still call fetchItems() get a no-op
+  // because TanStack Query handles the initial fetch automatically.
+  // Calling invalidate() or refetch() is the correct way now.
+  const fetchItems = useCallback(async () => {
+    // no-op: TanStack Query manages fetching
+  }, []);
+
+  const refetch = useCallback(async () => {
+    await query.refetch();
+  }, [query]);
 
   const addItem = useCallback(async (item: Omit<WardrobeItem, "id" | "userId" | "createdAt">) => {
-    if (!user) throw new Error("Not authenticated");
-    const res = await fetch(`${getApiBase()}/api/wardrobe/items`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...item, userId: user.id }),
-    });
-    if (!res.ok) throw new Error("Failed to add item");
-    const created: WardrobeItem = await res.json();
-    setItems(prev => [created, ...prev]);
-    return created;
-  }, [user]);
+    return addMutation.mutateAsync(item);
+  }, [addMutation]);
 
   const removeItem = useCallback(async (id: string) => {
-    await fetch(`${getApiBase()}/api/wardrobe/items/${id}`, { method: "DELETE" });
-    setItems(prev => prev.filter(item => item.id !== id));
-  }, []);
+    await removeMutation.mutateAsync(id);
+  }, [removeMutation]);
 
   const scanItem = useCallback(async (imageBase64: string) => {
     const res = await fetch(`${getApiBase()}/api/wardrobe/scan`, {
@@ -113,7 +95,21 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   return (
-    <WardrobeContext.Provider value={{ items, isLoading, fetchItems, addItem, removeItem, scanItem, recommendOutfits, generateTryOn }}>
+    <WardrobeContext.Provider
+      value={{
+        items,
+        isLoading,
+        fetchItems,
+        addItem,
+        removeItem,
+        scanItem,
+        recommendOutfits,
+        generateTryOn,
+        invalidate,
+        isRefetching,
+        refetch,
+      }}
+    >
       {children}
     </WardrobeContext.Provider>
   );
