@@ -1,9 +1,8 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { useFocusEffect } from "expo-router";
-import React, { useCallback, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Image,
   Platform,
   Pressable,
@@ -12,6 +11,16 @@ import {
   Text,
   View,
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  withSequence,
+  Easing,
+  FadeIn,
+  FadeOut,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { TabScreenHeader, TabScreenHeaderAction } from "@/components/TabScreenHeader";
@@ -27,8 +36,45 @@ export default function TryOnScreen() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState("All");
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
+  const [userPhotoBase64, setUserPhotoBase64] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
+
+  const pulseScale = useSharedValue(1);
+  const dotOpacity1 = useSharedValue(0.3);
+  const dotOpacity2 = useSharedValue(0.3);
+  const dotOpacity3 = useSharedValue(0.3);
+
+  useEffect(() => {
+    if (!isGenerating) return;
+    pulseScale.value = withRepeat(
+      withSequence(
+        withTiming(1.15, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+    );
+    dotOpacity1.value = withRepeat(
+      withSequence(withTiming(1, { duration: 400 }), withTiming(0.3, { duration: 400 })),
+      -1,
+    );
+    dotOpacity2.value = withRepeat(
+      withSequence(withTiming(0.3, { duration: 200 }), withTiming(1, { duration: 400 }), withTiming(0.3, { duration: 400 })),
+      -1,
+    );
+    dotOpacity3.value = withRepeat(
+      withSequence(withTiming(0.3, { duration: 400 }), withTiming(1, { duration: 400 }), withTiming(0.3, { duration: 200 })),
+      -1,
+    );
+  }, [isGenerating, pulseScale, dotOpacity1, dotOpacity2, dotOpacity3]);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value }],
+  }));
+  const dot1Style = useAnimatedStyle(() => ({ opacity: dotOpacity1.value }));
+  const dot2Style = useAnimatedStyle(() => ({ opacity: dotOpacity2.value }));
+  const dot3Style = useAnimatedStyle(() => ({ opacity: dotOpacity3.value }));
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 84 : insets.bottom + 60;
@@ -40,18 +86,13 @@ export default function TryOnScreen() {
   );
 
   const toggleItem = (item: WardrobeItem) => {
-    setSelectedIds(prev => {
-      if (prev.includes(item.id)) {
-        toast.info(`"${item.name}" deselected`);
-        return prev.filter(i => i !== item.id);
-      }
-      if (prev.length >= 5) {
-        toast.warning("You can select up to 5 items at once");
-        return prev;
-      }
-      toast.info(`"${item.name}" selected`);
-      return [...prev, item.id];
-    });
+    if (selectedIds.includes(item.id)) {
+      setSelectedIds(prev => prev.filter(i => i !== item.id));
+    } else if (selectedIds.length >= 5) {
+      toast.warning("You can select up to 5 items at once");
+    } else {
+      setSelectedIds(prev => [...prev, item.id]);
+    }
   };
 
   const pickPhoto = async () => {
@@ -64,13 +105,13 @@ export default function TryOnScreen() {
     });
     if (!result.canceled && result.assets[0]) {
       setUserPhoto(result.assets[0].uri);
+      setUserPhotoBase64(result.assets[0].base64 ?? null);
       setGeneratedImage(null);
-      toast.success("Photo uploaded! Now select items to try on.");
     }
   };
 
   const handleGenerate = async () => {
-    if (!userPhoto) {
+    if (!userPhoto || !userPhotoBase64) {
       toast.warning("Please upload your photo first");
       return;
     }
@@ -80,30 +121,35 @@ export default function TryOnScreen() {
     }
 
     setIsGenerating(true);
-    toast.info("AI is generating your virtual try-on...");
+    setLoadingMessage("Analyzing your wardrobe picks...");
+
+    const messages = [
+      "Analyzing your wardrobe picks...",
+      "Mixing & matching styles...",
+      "Creating your outfit preview...",
+      "Adding final touches...",
+    ];
+    let msgIndex = 0;
+    const msgInterval = setInterval(() => {
+      msgIndex = (msgIndex + 1) % messages.length;
+      setLoadingMessage(messages[msgIndex]);
+    }, 3000);
 
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [3, 4],
-        quality: 0.6,
-        base64: true,
-      });
-      const base64 = result.canceled ? null : result.assets[0]?.base64;
-      if (!base64) {
-        toast.warning("No image selected for try-on");
-        setIsGenerating(false);
-        return;
-      }
-
-      const response = await generateTryOn(base64, selectedIds);
-      setGeneratedImage(`data:image/png;base64,${response.imageBase64}`);
-      toast.success("Your AI outfit preview is ready!");
-    } catch {
-      toast.error("Failed to generate outfit preview. Please try again.");
-    } finally {
+      const response = await generateTryOn(userPhotoBase64, selectedIds);
+      clearInterval(msgInterval);
       setIsGenerating(false);
+      router.push({
+        pathname: "/wardrobe/try-on-result",
+        params: {
+          imageBase64: response.imageBase64,
+          description: response.description,
+        },
+      });
+    } catch {
+      clearInterval(msgInterval);
+      setIsGenerating(false);
+      toast.error("Failed to generate outfit preview. Please try again.");
     }
   };
 
@@ -122,12 +168,11 @@ export default function TryOnScreen() {
         trailing={
           <TabScreenHeaderAction
             onPress={() => {
-              setGeneratedImage(null);
               if (generatedImage) {
-                toast.info("Preview cleared");
+                setGeneratedImage(null);
               } else if (userPhoto) {
                 setUserPhoto(null);
-                toast.info("Photo removed");
+                setUserPhotoBase64(null);
               }
             }}
           >
@@ -145,7 +190,7 @@ export default function TryOnScreen() {
                 <Ionicons name="sparkles" size={12} color={Colors.white} />
                 <Text style={styles.readyBadgeText}>AI PREVIEW</Text>
               </View>
-              <Pressable style={styles.compareBtn} onPress={() => { setGeneratedImage(null); toast.info("Showing your original photo"); }}>
+              <Pressable style={styles.compareBtn} onPress={() => setGeneratedImage(null)}>
                 <Feather name="layers" size={14} color={Colors.text} />
                 <Text style={styles.compareBtnText}>Reset</Text>
               </Pressable>
@@ -178,7 +223,7 @@ export default function TryOnScreen() {
           {selectedIds.length > 0 && (
             <Pressable
               style={styles.selectedBadge}
-              onPress={() => { setSelectedIds([]); toast.info("Selection cleared"); }}
+              onPress={() => setSelectedIds([])}
             >
               <Text style={styles.selectedBadgeText}>{selectedIds.length} Selected · Clear</Text>
             </Pressable>
@@ -248,19 +293,27 @@ export default function TryOnScreen() {
           onPress={handleGenerate}
           disabled={isGenerating || selectedIds.length === 0}
         >
-          {isGenerating ? (
-            <>
-              <ActivityIndicator size="small" color={Colors.white} />
-              <Text style={styles.generateBtnText}>Generating Preview...</Text>
-            </>
-          ) : (
-            <>
-              <Ionicons name="sparkles" size={18} color={Colors.white} />
-              <Text style={styles.generateBtnText}>Generate AI Outfit</Text>
-            </>
-          )}
+          <Ionicons name="sparkles" size={18} color={Colors.white} />
+          <Text style={styles.generateBtnText}>Generate AI Outfit</Text>
         </Pressable>
       </ScrollView>
+
+      {isGenerating ? (
+        <Animated.View style={styles.loadingOverlay} entering={FadeIn.duration(300)} exiting={FadeOut.duration(300)}>
+          <View style={styles.loadingContent}>
+            <Animated.View style={[styles.loadingIconWrap, pulseStyle]}>
+              <Ionicons name="sparkles" size={48} color={Colors.primary} />
+            </Animated.View>
+            <Text style={styles.loadingTitle}>Creating Your Look</Text>
+            <Text style={styles.loadingMessage}>{loadingMessage}</Text>
+            <View style={styles.loadingDots}>
+              <Animated.View style={[styles.loadingDot, dot1Style]} />
+              <Animated.View style={[styles.loadingDot, dot2Style]} />
+              <Animated.View style={[styles.loadingDot, dot3Style]} />
+            </View>
+          </View>
+        </Animated.View>
+      ) : null}
     </View>
   );
 }
@@ -350,4 +403,27 @@ const styles = StyleSheet.create({
   },
   generateBtnDisabled: { backgroundColor: Colors.border },
   generateBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: Colors.white },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "rgba(250, 251, 255, 0.97)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  loadingContent: { alignItems: "center", gap: 16, paddingHorizontal: 40 },
+  loadingIconWrap: {
+    width: 100, height: 100, borderRadius: 50,
+    backgroundColor: Colors.surface, borderWidth: 2, borderColor: Colors.border,
+    alignItems: "center", justifyContent: "center", marginBottom: 8,
+  },
+  loadingTitle: { fontFamily: "Inter_700Bold", fontSize: 22, color: Colors.text },
+  loadingMessage: {
+    fontFamily: "Inter_500Medium", fontSize: 15, color: Colors.textSecondary,
+    textAlign: "center",
+  },
+  loadingDots: { flexDirection: "row", gap: 8, marginTop: 8 },
+  loadingDot: {
+    width: 10, height: 10, borderRadius: 5,
+    backgroundColor: Colors.primary,
+  },
 });

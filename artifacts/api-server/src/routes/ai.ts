@@ -3,6 +3,8 @@ import { generateText } from "ai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { z } from "zod";
 import { db, wardrobeItemsTable, usersTable, eq } from "@workspace/db";
+import axios from "axios";
+import FormData from "form-data";
 
 const openrouter = createOpenAICompatible({
   name: "openrouter",
@@ -219,71 +221,133 @@ router.post("/ai/try-on", async (req, res) => {
       return;
     }
 
-    const items = userId
+    const rapidApiKey = process.env.RAPIDAPI_KEY;
+    const rapidApiHost =
+      process.env.RAPIDAPI_HOST ?? "virtual-try-on7.p.rapidapi.com";
+    if (!rapidApiKey) {
+      res.status(500).json({ error: "RAPIDAPI_KEY not configured" });
+      return;
+    }
+
+    // Fetch selected wardrobe items from DB
+    const allItems = userId
       ? await db
           .select()
           .from(wardrobeItemsTable)
           .where(eq(wardrobeItemsTable.userId, userId))
       : [];
 
-    const selectedItems = items.filter((item: { id: string }) =>
+    const selectedItems = allItems.filter((item: { id: string }) =>
       selectedItemIds.includes(item.id),
     );
-    const itemDescriptions =
-      selectedItems.length > 0
-        ? selectedItems
-            .map(
-              (item: { name: string; color: string; category: string }) =>
-                `${item.name} (${item.color} ${item.category})`,
-            )
-            .join(", ")
-        : "stylish modern outfit";
 
-    const userPrefs = userId ? await getUserPreferences(userId) : null;
-    const styleContext = userPrefs?.stylePreferences?.length
-      ? ` with a ${userPrefs.stylePreferences.join(" and ")} aesthetic`
-      : "";
-
-    // Virtual try-on: generate an image using HuggingFace's free Inference API
-    const prompt = `Full-body fashion photo of a person wearing: ${itemDescriptions}${styleContext}. Professional studio lighting, clean neutral background, fashion magazine quality. All clothing items clearly visible and well-coordinated. Photorealistic. No text, letters, numbers, or watermarks.`;
-
-    const hfApiKey = process.env.HUGGINGFACE_API_KEY;
-    if (!hfApiKey) {
-      res.status(500).json({ error: "HUGGINGFACE_API_KEY not configured" });
+    if (selectedItems.length === 0) {
+      res.status(400).json({ error: "No valid wardrobe items found" });
       return;
     }
 
-    const response = await fetch(
-      `https://router.huggingface.co/hf-inference/models/${HF_IMAGE_MODEL}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${hfApiKey}`,
-          "Content-Type": "application/json",
+    // Helper: fetch an image URL and return its buffer
+    async function fetchImageBuffer(
+      url: string,
+    ): Promise<Buffer<ArrayBuffer> | null> {
+      try {
+        const resp = await axios.get<ArrayBuffer>(url, {
+          responseType: "arraybuffer",
+          timeout: 15000,
+        });
+        return Buffer.from(resp.data) as Buffer<ArrayBuffer>;
+      } catch {
+        return null;
+      }
+    }
+
+    // Helper: run a single RapidAPI try-on call
+    async function runTryOn(
+      personBuf: Buffer<ArrayBuffer>,
+      apparelBuf: Buffer<ArrayBuffer>,
+    ): Promise<Buffer<ArrayBuffer>> {
+      const form = new FormData();
+      form.append("image", personBuf, {
+        filename: "person.jpg",
+        contentType: "image/jpeg",
+      });
+      form.append("image-apparel", apparelBuf, {
+        filename: "apparel.jpg",
+        contentType: "image/jpeg",
+      });
+
+      const response = await axios.post(
+        `https://${rapidApiHost}/results`,
+        form,
+        {
+          headers: {
+            "x-rapidapi-key": rapidApiKey,
+            "x-rapidapi-host": rapidApiHost,
+            ...form.getHeaders(),
+          },
+          timeout: 90000,
         },
-        body: JSON.stringify({ inputs: prompt }),
-      },
-    );
-
-    if (!response.ok) {
-      const errBody = await response.text();
-      console.error(
-        "HuggingFace image generation error:",
-        response.status,
-        errBody,
       );
-      res.status(500).json({ error: "Failed to generate try-on image" });
+
+      const base64: string | undefined =
+        response.data?.results?.[0]?.entities?.[0]?.image;
+      if (!base64) throw new Error("Missing image in RapidAPI response");
+
+      const clean = base64.startsWith("data:") ? base64.split(",")[1] : base64;
+      return Buffer.from(clean!, "base64") as Buffer<ArrayBuffer>;
+    }
+
+    // Convert person photo base64 → buffer
+    let currentPersonBuf: Buffer<ArrayBuffer> = Buffer.from(
+      userPhotoBase64,
+      "base64",
+    ) as Buffer<ArrayBuffer>;
+
+    const itemNames: string[] = [];
+
+    // Chain try-ons: for each selected item, run the API sequentially
+    // Output of one try-on becomes the person photo for the next
+    for (const item of selectedItems) {
+      const imgUrl = (item as { imageUrl?: string | null; name: string })
+        .imageUrl;
+      if (!imgUrl) continue; // skip items without an image
+
+      let apparelBuf: Buffer<ArrayBuffer> | null = null;
+      if (imgUrl.startsWith("data:")) {
+        const b64part = imgUrl.split(",")[1];
+        if (b64part)
+          apparelBuf = Buffer.from(b64part, "base64") as Buffer<ArrayBuffer>;
+      } else {
+        apparelBuf = await fetchImageBuffer(imgUrl);
+      }
+
+      if (!apparelBuf) {
+        console.warn(`Could not load image for item ${item.id}, skipping`);
+        continue;
+      }
+
+      try {
+        currentPersonBuf = await runTryOn(currentPersonBuf, apparelBuf);
+        itemNames.push((item as { name: string }).name);
+      } catch (err) {
+        console.error(`Try-on failed for item ${item.id}:`, err);
+        // Don't abort — continue with remaining items
+      }
+    }
+
+    if (itemNames.length === 0) {
+      res
+        .status(500)
+        .json({
+          error: "Could not process any wardrobe items (missing images?)",
+        });
       return;
     }
 
-    // HuggingFace Inference API returns raw image bytes
-    const imageBuffer = Buffer.from(await response.arrayBuffer());
-    const imageBase64 = imageBuffer.toString("base64");
+    const imageBase64 = currentPersonBuf.toString("base64");
+    const description = `Virtual try-on: wearing ${itemNames.join(", ")}`;
 
-    res.json({
-      imageBase64,
-      description: `AI-generated outfit: ${itemDescriptions}`,
-    });
+    res.json({ imageBase64, description });
   } catch (err) {
     console.error("Error generating try-on:", err);
     res.status(500).json({ error: "Failed to generate try-on" });

@@ -137,7 +137,7 @@ export default function AddItemScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-      <View style={[styles.container, { paddingTop: topInset }]}>
+      <View style={[styles.container, { paddingTop: Platform.OS === "ios" ? 0 : topInset }]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={24} color={Colors.text} />

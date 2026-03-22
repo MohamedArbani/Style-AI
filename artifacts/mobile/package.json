@@ -60,6 +60,9 @@
   },
   "dependencies": {
     "@nkzw/create-context-hook": "^1.1.0",
-    "expo-crypto": "^55.0.10"
+    "expo-crypto": "^55.0.10",
+    "expo-file-system": "^55.0.11",
+    "expo-media-library": "^55.0.10",
+    "expo-sharing": "^55.0.14"
   }
 }
