@@ -63,6 +63,7 @@
     "expo-crypto": "^55.0.10",
     "expo-file-system": "^55.0.11",
     "expo-media-library": "^55.0.10",
-    "expo-sharing": "^55.0.14"
+    "expo-sharing": "^55.0.14",
+    "reanimated-color-picker": "^4.2.0"
   }
 }

@@ -19,6 +19,68 @@ const TEXT_MODEL = "openrouter/free";
 // Free image generation model via HuggingFace Inference API
 const HF_IMAGE_MODEL = "black-forest-labs/FLUX.1-schnell";
 
+const CATEGORY_OPTIONS = [
+  "Tops & T-shirts",
+  "Shirts",
+  "Jackets & Coats",
+  "Bottoms",
+  "Dresses",
+  "Shoes",
+  "Accessories",
+  "Sportswear",
+  "Outerwear",
+] as const;
+
+const SEASON_OPTIONS = [
+  "Spring",
+  "Summer",
+  "Autumn",
+  "Winter",
+  "All Season",
+] as const;
+
+const CATEGORY_ALIASES: Record<string, string[]> = {
+  "Tops & T-shirts": ["top", "tops", "t-shirt", "tee", "tshirt"],
+  Shirts: ["shirt", "button down", "button-up", "button up", "blouse"],
+  "Jackets & Coats": ["jacket", "coat", "blazer", "trench", "parka"],
+  Bottoms: [
+    "bottom",
+    "bottoms",
+    "pants",
+    "trousers",
+    "jeans",
+    "shorts",
+    "skirt",
+  ],
+  Dresses: ["dress", "gown"],
+  Shoes: ["shoe", "shoes", "sneaker", "heel", "boots", "loafer", "sandals"],
+  Accessories: [
+    "accessory",
+    "accessories",
+    "bag",
+    "belt",
+    "hat",
+    "scarf",
+    "jewelry",
+  ],
+  Sportswear: ["sportswear", "activewear", "gym wear", "athletic"],
+  Outerwear: ["outerwear", "hoodie", "cardigan", "sweater", "pullover"],
+};
+
+const SEASON_ALIASES: Record<string, string[]> = {
+  Spring: ["spring"],
+  Summer: ["summer"],
+  Autumn: ["autumn", "fall"],
+  Winter: ["winter"],
+  "All Season": [
+    "all season",
+    "all seasons",
+    "year round",
+    "year-round",
+    "any season",
+  ],
+};
+
 const router: IRouter = Router();
 
 async function getUserPreferences(userId: string) {
@@ -35,22 +97,62 @@ async function getUserPreferences(userId: string) {
 }
 
 const scanSchema = z.object({
-  name: z.string().describe('Short descriptive name, e.g. "White Linen Shirt"'),
-  category: z.enum([
-    "Tops & T-shirts",
-    "Shirts",
-    "Jackets & Coats",
-    "Bottoms",
-    "Dresses",
-    "Shoes",
-    "Accessories",
-    "Sportswear",
-    "Outerwear",
-  ]),
-  color: z.string().describe('Primary color name, e.g. "Navy Blue"'),
-  season: z.enum(["Spring", "Summer", "Autumn", "Winter", "All Season"]),
-  tags: z.array(z.string()).min(2).max(4).describe("2-4 descriptive tags"),
+  name: z
+    .string()
+    .min(1)
+    .describe('Short descriptive name, e.g. "White Linen Shirt"'),
+  category: z.string().min(1),
+  color: z
+    .string()
+    .min(1)
+    .describe('Primary color name or hex value, e.g. "Navy Blue" or "#1B2CC1"'),
+  season: z.string().min(1).optional(),
+  brand: z.string().trim().min(1).max(60).optional(),
+  notes: z.string().trim().min(1).max(220).optional(),
+  tags: z
+    .array(z.string().trim().min(1))
+    .min(2)
+    .max(4)
+    .describe("2-4 descriptive tags"),
 });
+
+function normalizeText(value: string) {
+  return value.trim().toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ");
+}
+
+function normalizeChoice(
+  value: string | undefined,
+  options: readonly string[],
+  aliases: Record<string, string[]>,
+) {
+  if (!value) {
+    return undefined;
+  }
+
+  const normalized = normalizeText(value);
+  const directMatch = options.find(
+    (option) => normalizeText(option) === normalized,
+  );
+  if (directMatch) {
+    return directMatch;
+  }
+
+  for (const option of options) {
+    const candidates = [option, ...(aliases[option] ?? [])].map(normalizeText);
+    if (candidates.includes(normalized)) {
+      return option;
+    }
+  }
+
+  for (const option of options) {
+    const candidates = [option, ...(aliases[option] ?? [])].map(normalizeText);
+    if (candidates.some((candidate) => normalized.includes(candidate))) {
+      return option;
+    }
+  }
+
+  return undefined;
+}
 
 router.post("/wardrobe/scan", async (req, res) => {
   try {
@@ -75,9 +177,12 @@ router.post("/wardrobe/scan", async (req, res) => {
               type: "text",
               text: `Analyze this clothing item image.
 ${styleContext}
-Return a JSON object with: name, category, color, season, tags.
-Categories: "Tops & T-shirts", "Shirts", "Jackets & Coats", "Bottoms", "Dresses", "Shoes", "Accessories", "Sportswear", "Outerwear".
-Seasons: "Spring", "Summer", "Autumn", "Winter", "All Season".
+Return a JSON object with: name, category, color, season, brand, notes, tags.
+Categories must map to one of: ${CATEGORY_OPTIONS.map((option) => `"${option}"`).join(", ")}.
+Seasons must map to one of: ${SEASON_OPTIONS.map((option) => `"${option}"`).join(", ")}.
+For brand, return the visible brand name if present, otherwise an empty string.
+For notes, return one short sentence with useful item details like fabric, pattern, fit, or finish.
+For color, prefer a plain color name when obvious; otherwise return the closest useful color description.
 Return ONLY valid JSON, nothing else.`,
             },
             {
@@ -94,7 +199,35 @@ Return ONLY valid JSON, nothing else.`,
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     const raw = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
     const parsed = scanSchema.safeParse(raw);
-    res.json(parsed.success ? parsed.data : raw);
+
+    if (!parsed.success) {
+      res.json(raw);
+      return;
+    }
+
+    const normalizedCategory = normalizeChoice(
+      parsed.data.category,
+      CATEGORY_OPTIONS,
+      CATEGORY_ALIASES,
+    );
+    const normalizedSeason = normalizeChoice(
+      parsed.data.season,
+      SEASON_OPTIONS,
+      SEASON_ALIASES,
+    );
+
+    res.json({
+      name: parsed.data.name.trim(),
+      category: normalizedCategory ?? parsed.data.category.trim(),
+      color: parsed.data.color.trim(),
+      season: normalizedSeason ?? parsed.data.season?.trim(),
+      brand: parsed.data.brand?.trim() || undefined,
+      notes: parsed.data.notes?.trim() || undefined,
+      tags: parsed.data.tags
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+        .slice(0, 4),
+    });
   } catch (err) {
     console.error("Error scanning clothing:", err);
     res.status(500).json({ error: "Failed to scan clothing" });
@@ -336,11 +469,9 @@ router.post("/ai/try-on", async (req, res) => {
     }
 
     if (itemNames.length === 0) {
-      res
-        .status(500)
-        .json({
-          error: "Could not process any wardrobe items (missing images?)",
-        });
+      res.status(500).json({
+        error: "Could not process any wardrobe items (missing images?)",
+      });
       return;
     }
 

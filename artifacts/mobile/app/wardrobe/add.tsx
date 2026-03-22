@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import React, { useState } from "react";
@@ -16,26 +16,22 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ColorSwatchList } from "@/components/ColorSwatchList";
 import Colors from "@/constants/colors";
+import { OptionPicker } from "@/components/OptionPicker";
 import { useToast } from "@/components/Toast";
 import { useWardrobe } from "@/context/WardrobeContext";
 
 const CATEGORIES = ["Tops & T-shirts", "Shirts", "Jackets & Coats", "Bottoms", "Dresses", "Shoes", "Accessories", "Sportswear", "Outerwear"];
 const SEASONS = ["Spring", "Summer", "Autumn", "Winter", "All Season"];
-const COLORS_LIST = [
-  { name: "White", hex: "#FFFFFF" },
-  { name: "Black", hex: "#000000" },
-  { name: "Navy", hex: "#1B2CC1" },
-  { name: "Grey", hex: "#9CA3AF" },
-  { name: "Beige", hex: "#D4B896" },
-  { name: "Brown", hex: "#92400E" },
-  { name: "Red", hex: "#EF4444" },
-  { name: "Green", hex: "#22C55E" },
-  { name: "Yellow", hex: "#F59E0B" },
-  { name: "Blue", hex: "#3B82F6" },
-  { name: "Pink", hex: "#EC4899" },
-  { name: "Purple", hex: "#8B5CF6" },
-];
+
+function isKnownCategory(value: string) {
+  return CATEGORIES.includes(value);
+}
+
+function isKnownSeason(value: string) {
+  return SEASONS.includes(value);
+}
 
 export default function AddItemScreen() {
   const insets = useSafeAreaInsets();
@@ -68,6 +64,11 @@ export default function AddItemScreen() {
       }
       result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8, base64: true });
     } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        toast.warning("Photo library access is required to select photos");
+        return;
+      }
       result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8, base64: true });
     }
     if (!result.canceled && result.assets[0]) {
@@ -103,9 +104,11 @@ export default function AddItemScreen() {
       const result = await scanItem(imageBase64);
       let filled = 0;
       if (result.name) { setName(result.name); filled++; }
-      if (result.category) { setCategory(result.category); filled++; }
+      if (result.category && isKnownCategory(result.category)) { setCategory(result.category); filled++; }
       if (result.color) { setColor(result.color); filled++; }
-      if (result.season) { setSeason(result.season); filled++; }
+      if (result.season && isKnownSeason(result.season)) { setSeason(result.season); filled++; }
+      if (result.brand) { setBrand(result.brand); filled++; }
+      if (result.notes) { setNotes(result.notes); filled++; }
       if (result.tags) { setTags(result.tags); filled++; }
       toast.success(`AI filled in ${filled} field${filled !== 1 ? "s" : ""} automatically`);
     } catch {
@@ -221,62 +224,33 @@ export default function AddItemScreen() {
 
             <View style={[styles.field, { zIndex: 20 }]}>
               <Text style={styles.fieldLabel}>Category</Text>
-              <Pressable style={styles.select} onPress={() => { setShowCatPicker(!showCatPicker); setShowSeasonPicker(false); }}>
-                <Text style={styles.selectText}>{category}</Text>
-                <Ionicons name={showCatPicker ? "chevron-up" : "chevron-down"} size={18} color={Colors.textSecondary} />
-              </Pressable>
-              {showCatPicker && (
-                <View style={styles.dropdown}>
-                  {CATEGORIES.map(cat => (
-                    <Pressable
-                      key={cat}
-                      style={[styles.dropdownItem, cat === category && styles.dropdownItemActive]}
-                      onPress={() => { setCategory(cat); setShowCatPicker(false); }}
-                    >
-                      <Text style={[styles.dropdownItemText, cat === category && styles.dropdownItemTextActive]}>{cat}</Text>
-                      {cat === category && <Ionicons name="checkmark" size={16} color={Colors.primary} />}
-                    </Pressable>
-                  ))}
-                </View>
-              )}
+              <OptionPicker
+                label="Category"
+                value={category}
+                options={CATEGORIES}
+                onChange={setCategory}
+                visible={showCatPicker}
+                onOpen={() => setShowCatPicker(true)}
+                onClose={() => setShowCatPicker(false)}
+              />
             </View>
 
             <View style={styles.field}>
               <Text style={styles.fieldLabel}>Color</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorScroll}>
-                {COLORS_LIST.map(c => (
-                  <Pressable
-                    key={c.name}
-                    style={[styles.colorSwatch, { backgroundColor: c.hex }, color === c.name && styles.colorSwatchSelected]}
-                    onPress={() => setColor(c.name)}
-                  >
-                    {color === c.name && <Ionicons name="checkmark" size={14} color={c.name === "White" ? Colors.text : Colors.white} />}
-                  </Pressable>
-                ))}
-              </ScrollView>
-              <Text style={styles.colorName}>{color}</Text>
+              <ColorSwatchList value={color} onChange={setColor} />
             </View>
 
             <View style={[styles.field, { zIndex: 10 }]}>
               <Text style={styles.fieldLabel}>Season</Text>
-              <Pressable style={styles.select} onPress={() => { setShowSeasonPicker(!showSeasonPicker); setShowCatPicker(false); }}>
-                <Text style={styles.selectText}>{season}</Text>
-                <Ionicons name={showSeasonPicker ? "chevron-up" : "chevron-down"} size={18} color={Colors.textSecondary} />
-              </Pressable>
-              {showSeasonPicker && (
-                <View style={[styles.dropdown, { zIndex: 100 }]}>
-                  {SEASONS.map(s => (
-                    <Pressable
-                      key={s}
-                      style={[styles.dropdownItem, s === season && styles.dropdownItemActive]}
-                      onPress={() => { setSeason(s); setShowSeasonPicker(false); }}
-                    >
-                      <Text style={[styles.dropdownItemText, s === season && styles.dropdownItemTextActive]}>{s}</Text>
-                      {s === season && <Ionicons name="checkmark" size={16} color={Colors.primary} />}
-                    </Pressable>
-                  ))}
-                </View>
-              )}
+              <OptionPicker
+                label="Season"
+                value={season}
+                options={SEASONS}
+                onChange={setSeason}
+                visible={showSeasonPicker}
+                onOpen={() => setShowSeasonPicker(true)}
+                onClose={() => setShowSeasonPicker(false)}
+              />
             </View>
 
             <View style={styles.field}>
@@ -325,7 +299,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16, borderRadius: 16, overflow: "hidden",
     height: 220, backgroundColor: Colors.surface, marginBottom: 12, position: "relative",
   },
-  image: { width: "100%", height: "100%", resizeMode: "cover" },
+  image: { width: "100%", height: "100%", resizeMode: "contain" },
   cameraBtn: {
     position: "absolute", bottom: 12, right: 12,
     width: 36, height: 36, borderRadius: 18,
@@ -358,28 +332,4 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.text,
   },
   textarea: { height: 80, paddingTop: 12 },
-  select: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    borderRadius: 10, borderWidth: 1.5, borderColor: Colors.border,
-    backgroundColor: Colors.card, paddingHorizontal: 14, height: 46,
-  },
-  selectText: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.text },
-  dropdown: {
-    position: "absolute", top: 82, left: 0, right: 0, zIndex: 50,
-    backgroundColor: Colors.card, borderRadius: 10, borderWidth: 1, borderColor: Colors.border,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 8,
-    maxHeight: 200, overflow: "scroll",
-  },
-  dropdownItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12 },
-  dropdownItemActive: { backgroundColor: Colors.surface },
-  dropdownItemText: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.text },
-  dropdownItemTextActive: { fontFamily: "Inter_600SemiBold", color: Colors.primary },
-  colorScroll: { gap: 8, paddingVertical: 4 },
-  colorSwatch: {
-    width: 30, height: 30, borderRadius: 15,
-    borderWidth: 1.5, borderColor: Colors.border,
-    alignItems: "center", justifyContent: "center",
-  },
-  colorSwatchSelected: { borderWidth: 3, borderColor: Colors.primary },
-  colorName: { fontFamily: "Inter_500Medium", fontSize: 12, color: Colors.textSecondary },
 });
