@@ -61,10 +61,6 @@ export default function RegisterScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={Colors.text} />
-        </Pressable>
-
         <View style={styles.header}>
           <View style={styles.iconWrap}>
             <MaterialCommunityIcons name="hanger" size={28} color={Colors.primary} />
