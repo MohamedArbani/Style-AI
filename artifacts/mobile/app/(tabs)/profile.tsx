@@ -124,6 +124,8 @@ export default function ProfileScreen() {
 
         <Text style={styles.sectionLabel}>APP</Text>
         <GlassCard style={styles.menuSection}>
+          <MenuItem icon="play-circle" label="View Onboarding" onPress={() => router.push("/onboarding")} />
+          <View style={styles.separator} />
           <MenuItem icon="shield" label="Privacy & Security" onPress={() => handleComingSoon("Privacy & Security")} />
           <View style={styles.separator} />
           <MenuItem icon="help-circle" label="Help & Support" onPress={() => handleComingSoon("Help & Support")} />

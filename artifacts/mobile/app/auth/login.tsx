@@ -63,14 +63,6 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {router.canGoBack() ? (
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={24} color={Colors.text} />
-          </Pressable>
-        ) : (
-          <View style={styles.backBtn} />
-        )}
-
         <Text style={styles.appName}>SMART WARDROBE AI</Text>
 
         <View style={styles.heroBanner}>

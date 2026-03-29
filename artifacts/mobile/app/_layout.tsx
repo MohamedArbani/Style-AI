@@ -7,9 +7,9 @@ import {
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
-import { Stack, router } from "expo-router";
+import { Stack, router, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -31,19 +31,62 @@ const queryClient = new QueryClient({
 });
 
 function RootLayoutNav() {
-  const { user, isLoading, isOnboarded } = useAuth();
-  const userId = user?.id;
+  const { user, isLoading, isOnboarded, flowStage } = useAuth();
+  const segments = useSegments();
+  const hasInitialRouted = useRef(false);
 
   useEffect(() => {
     if (isLoading) return;
-    if (!userId) {
-      router.replace("/onboarding");
-    } else if (!isOnboarded) {
-      router.replace("/setup/language");
-    } else {
+
+    const firstSegment = segments[0];
+    const inAuthGroup = firstSegment === "auth";
+    const inTabsGroup = firstSegment === "(tabs)";
+    const inWardrobeGroup = firstSegment === "wardrobe";
+
+    // Guard: authenticated users cannot access auth pages
+    if (user && inAuthGroup) {
       router.replace("/(tabs)");
+      return;
     }
-  }, [userId, isLoading, isOnboarded]);
+
+    // Guard: unauthenticated users cannot access protected pages
+    if (!user && (inTabsGroup || inWardrobeGroup)) {
+      router.replace("/onboarding");
+      return;
+    }
+
+    // Initial routing (runs once on app load)
+    if (!hasInitialRouted.current) {
+      hasInitialRouted.current = true;
+
+      if (user && isOnboarded) {
+        router.replace("/(tabs)");
+        return;
+      }
+
+      if (!user) {
+        switch (flowStage) {
+          case "register":
+            router.replace("/auth/register");
+            break;
+          case "premium":
+            router.replace("/premium");
+            break;
+          case "ai-plan":
+            router.replace("/setup/ai-plan");
+            break;
+          case "setup":
+            router.replace("/setup/language");
+            break;
+          case "complete":
+          case "onboarding":
+          default:
+            router.replace("/onboarding");
+            break;
+        }
+      }
+    }
+  }, [user, isLoading, isOnboarded, flowStage, segments]);
 
   const glassSheets = isLiquidGlassAvailable();
 
@@ -58,6 +101,7 @@ function RootLayoutNav() {
       <Stack.Screen name="setup/age" />
       <Stack.Screen name="setup/height" />
       <Stack.Screen name="setup/style" />
+      <Stack.Screen name="setup/ai-plan" />
       <Stack.Screen
         name="wardrobe/[id]"
         options={{
@@ -78,19 +122,12 @@ function RootLayoutNav() {
       <Stack.Screen
         name="wardrobe/try-on-result"
         options={{
-          headerShown: true,
+          headerShown: false,
           title: "AI Outfit Preview",
           animation: "default",
         }}
       />
-      <Stack.Screen
-        name="premium"
-        options={{
-          presentation: "modal",
-          animation: "slide_from_bottom",
-          ...(glassSheets ? { contentStyle: { backgroundColor: "transparent" } } : {}),
-        }}
-      />
+      <Stack.Screen name="premium" />
     </Stack>
   );
 }

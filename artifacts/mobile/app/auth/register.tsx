@@ -18,7 +18,7 @@ import { useToast } from "@/components/Toast";
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
-  const { register } = useAuth();
+  const { register, syncPreferencesToServer } = useAuth();
   const toast = useToast();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -45,6 +45,8 @@ export default function RegisterScreen() {
     setIsLoading(true);
     try {
       await register(fullName.trim(), email.trim(), password);
+      // Sync locally-stored setup preferences to the server
+      await syncPreferencesToServer();
       toast.success("Account created! Let's set up your profile.");
     } catch {
       toast.error("Failed to create account. Please try again.");

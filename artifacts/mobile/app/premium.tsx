@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { useAuth } from "@/context/AuthContext";
 
 const features = [
   {
@@ -32,19 +33,24 @@ const features = [
 
 export default function PremiumScreen() {
   const insets = useSafeAreaInsets();
+  const { setFlowStage } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">("yearly");
 
   const topInset = Platform.select({
     web: 67,
-    ios: 10,
     default: insets.top,
   });
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
+  const handleContinue = async () => {
+    await setFlowStage("register");
+    router.replace("/auth/register");
+  };
+
   return (
     <View style={[styles.container, { paddingTop: topInset }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
+        <Pressable onPress={handleContinue}>
           <Ionicons name="close" size={24} color={Colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Smart Wardrobe Pro</Text>
@@ -125,7 +131,7 @@ export default function PremiumScreen() {
           </View>
         </Pressable>
 
-        <Pressable style={styles.trialBtn}>
+        <Pressable style={styles.trialBtn} onPress={handleContinue}>
           <Text style={styles.trialBtnText}>Start 7-Day Free Trial</Text>
         </Pressable>
 

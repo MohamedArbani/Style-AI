@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React from "react";
 import {
@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
+import { useAuth } from "@/context/AuthContext";
 import { Onboarding } from "@/components/Onboarding";
 
 const CARD_HORIZONTAL_PADDING = 24;
@@ -19,6 +20,8 @@ const CARD_ASPECT_RATIO = 0.78; // height / width
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const { user, setFlowStage } = useAuth();
+  const isPreview = !!user;
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
@@ -26,7 +29,8 @@ export default function OnboardingScreen() {
   const cardWidth = width - CARD_HORIZONTAL_PADDING * 2;
   const cardHeight = cardWidth / CARD_ASPECT_RATIO;
 
-  const handleGetStarted = () => {
+  const handleGetStarted = async () => {
+    await setFlowStage("setup");
     router.push("/setup/language");
   };
 
@@ -36,6 +40,13 @@ export default function OnboardingScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topInset + 16, paddingBottom: bottomInset + 8 }]}>
+      {/* Close button for authenticated users previewing */}
+      {isPreview ? (
+        <Pressable style={styles.closeBtn} onPress={() => router.back()}>
+          <Ionicons name="close" size={24} color={Colors.text} />
+        </Pressable>
+      ) : null}
+
       {/* Title & Subtitle */}
       <View style={styles.textBlock}>
         <Text style={styles.title}>Visualize Your Style</Text>
@@ -57,20 +68,31 @@ export default function OnboardingScreen() {
 
       {/* Footer */}
       <View style={styles.footer}>
-        <Pressable
-          style={({ pressed }) => [styles.btn, { opacity: pressed ? 0.85 : 1 }]}
-          onPress={handleGetStarted}
-        >
-          <Text style={styles.btnText}>Get Started</Text>
-          <MaterialCommunityIcons name="arrow-right" size={20} color={Colors.white} />
-        </Pressable>
-
-        <View style={styles.signInRow}>
-          <Text style={styles.signInLabel}>Already have an account? </Text>
-          <Pressable onPress={handleSignIn}>
-            <Text style={styles.signInLink}>Sign In</Text>
+        {isPreview ? (
+          <Pressable
+            style={({ pressed }) => [styles.btn, { opacity: pressed ? 0.85 : 1 }]}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.btnText}>Back to App</Text>
           </Pressable>
-        </View>
+        ) : (
+          <>
+            <Pressable
+              style={({ pressed }) => [styles.btn, { opacity: pressed ? 0.85 : 1 }]}
+              onPress={handleGetStarted}
+            >
+              <Text style={styles.btnText}>Get Started</Text>
+              <MaterialCommunityIcons name="arrow-right" size={20} color={Colors.white} />
+            </Pressable>
+
+            <View style={styles.signInRow}>
+              <Text style={styles.signInLabel}>Already have an account? </Text>
+              <Pressable onPress={handleSignIn}>
+                <Text style={styles.signInLink}>Sign In</Text>
+              </Pressable>
+            </View>
+          </>
+        )}
       </View>
     </View>
   );
@@ -80,6 +102,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  closeBtn: {
+    alignSelf: "flex-end",
+    marginRight: CARD_HORIZONTAL_PADDING,
+    marginBottom: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
   },
   textBlock: {
     paddingHorizontal: CARD_HORIZONTAL_PADDING,

@@ -346,7 +346,7 @@ Choose items that go well together. matchScore is 0-100. Return ONLY valid JSON 
 
 router.post("/ai/try-on", async (req, res) => {
   try {
-    const { userPhotoBase64, selectedItemIds, userId } = req.body;
+    const { userPhotoBase64, selectedItemIds, userId, customItems } = req.body;
     if (!userPhotoBase64 || !selectedItemIds?.length) {
       res
         .status(400)
@@ -370,12 +370,43 @@ router.post("/ai/try-on", async (req, res) => {
           .where(eq(wardrobeItemsTable.userId, userId))
       : [];
 
-    const selectedItems = allItems.filter((item: { id: string }) =>
+    const wardrobeSelected = allItems.filter((item: { id: string }) =>
       selectedItemIds.includes(item.id),
     );
+    const customSelected: { id: string; base64: string; name?: string }[] =
+      Array.isArray(customItems)
+        ? customItems.filter((ci: { id: string }) =>
+            selectedItemIds.includes(ci.id),
+          )
+        : [];
 
-    if (selectedItems.length === 0) {
-      res.status(400).json({ error: "No valid wardrobe items found" });
+    type TryOnItem = {
+      id: string;
+      imageUrl?: string | null;
+      name: string;
+      base64?: string;
+    };
+
+    // Build the ordered list of items to process (preserve selection order)
+    const orderedItems: TryOnItem[] = (selectedItemIds as string[])
+      .map((id) => {
+        const wi = wardrobeSelected.find((i: { id: string }) => i.id === id) as
+          | { id: string; imageUrl?: string | null; name: string }
+          | undefined;
+        if (wi) return { id: wi.id, imageUrl: wi.imageUrl, name: wi.name };
+        const ci = customSelected.find((c) => c.id === id);
+        if (ci)
+          return {
+            id: ci.id,
+            name: ci.name ?? "Custom Item",
+            base64: ci.base64,
+          };
+        return null;
+      })
+      .filter(Boolean) as TryOnItem[];
+
+    if (orderedItems.length === 0) {
+      res.status(400).json({ error: "No valid items found" });
       return;
     }
 
@@ -440,18 +471,22 @@ router.post("/ai/try-on", async (req, res) => {
 
     // Chain try-ons: for each selected item, run the API sequentially
     // Output of one try-on becomes the person photo for the next
-    for (const item of selectedItems) {
-      const imgUrl = (item as { imageUrl?: string | null; name: string })
-        .imageUrl;
-      if (!imgUrl) continue; // skip items without an image
-
+    for (const item of orderedItems) {
       let apparelBuf: Buffer<ArrayBuffer> | null = null;
-      if (imgUrl.startsWith("data:")) {
-        const b64part = imgUrl.split(",")[1];
-        if (b64part)
-          apparelBuf = Buffer.from(b64part, "base64") as Buffer<ArrayBuffer>;
+
+      if (item.base64) {
+        // Custom uploaded item — use its base64 directly
+        apparelBuf = Buffer.from(item.base64, "base64") as Buffer<ArrayBuffer>;
       } else {
-        apparelBuf = await fetchImageBuffer(imgUrl);
+        const imgUrl = item.imageUrl;
+        if (!imgUrl) continue; // skip items without an image
+        if (imgUrl.startsWith("data:")) {
+          const b64part = imgUrl.split(",")[1];
+          if (b64part)
+            apparelBuf = Buffer.from(b64part, "base64") as Buffer<ArrayBuffer>;
+        } else {
+          apparelBuf = await fetchImageBuffer(imgUrl);
+        }
       }
 
       if (!apparelBuf) {
@@ -461,7 +496,7 @@ router.post("/ai/try-on", async (req, res) => {
 
       try {
         currentPersonBuf = await runTryOn(currentPersonBuf, apparelBuf);
-        itemNames.push((item as { name: string }).name);
+        itemNames.push(item.name);
       } catch (err) {
         console.error(`Try-on failed for item ${item.id}:`, err);
         // Don't abort — continue with remaining items

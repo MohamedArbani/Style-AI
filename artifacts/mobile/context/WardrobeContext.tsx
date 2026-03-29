@@ -11,6 +11,9 @@ import {
 export type { WardrobeItem, OutfitRecommendation } from "@/hooks/use-wardrobe-queries";
 import type { WardrobeItem, OutfitRecommendation } from "@/hooks/use-wardrobe-queries";
 
+/** A custom outfit item uploaded locally by the user (not in the wardrobe DB) */
+export type CustomTryOnItem = { id: string; base64: string; name: string };
+
 type WardrobeContextType = {
   items: WardrobeItem[];
   isLoading: boolean;
@@ -19,7 +22,7 @@ type WardrobeContextType = {
   removeItem: (id: string) => Promise<void>;
   scanItem: (imageBase64: string) => Promise<Partial<WardrobeItem>>;
   recommendOutfits: (params?: { occasion?: string; weather?: string; stylePreferences?: string[] }) => Promise<OutfitRecommendation[]>;
-  generateTryOn: (userPhotoBase64: string, selectedItemIds: string[]) => Promise<{ imageBase64: string; description: string }>;
+  generateTryOn: (userPhotoBase64: string, selectedItemIds: string[], customItems?: CustomTryOnItem[]) => Promise<{ imageBase64: string; description: string }>;
   /** Force revalidate the wardrobe items cache */
   invalidate: () => void;
   /** Whether a background refetch is in progress */
@@ -83,12 +86,12 @@ export function WardrobeProvider({ children }: { children: React.ReactNode }) {
     return res.json();
   }, [user]);
 
-  const generateTryOn = useCallback(async (userPhotoBase64: string, selectedItemIds: string[]) => {
+  const generateTryOn = useCallback(async (userPhotoBase64: string, selectedItemIds: string[], customItems?: CustomTryOnItem[]) => {
     if (!user) throw new Error("Not authenticated");
     const res = await fetch(`${getApiBase()}/api/ai/try-on`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userPhotoBase64, selectedItemIds, userId: user.id }),
+      body: JSON.stringify({ userPhotoBase64, selectedItemIds, userId: user.id, customItems }),
     });
     if (!res.ok) throw new Error("Failed to generate try-on");
     return res.json();

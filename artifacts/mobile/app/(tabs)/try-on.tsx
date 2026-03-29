@@ -26,8 +26,12 @@ import Colors from "@/constants/colors";
 import { TabScreenHeader, TabScreenHeaderAction } from "@/components/TabScreenHeader";
 import { useToast } from "@/components/Toast";
 import { useWardrobe, WardrobeItem } from "@/context/WardrobeContext";
+import type { CustomTryOnItem } from "@/context/WardrobeContext";
 
 const CATEGORIES = ["All", "Tops & T-shirts", "Bottoms", "Dresses", "Outerwear"];
+
+/** A locally-uploaded item not stored in the wardrobe DB */
+type CustomItem = { id: string; uri: string; base64: string };
 
 export default function TryOnScreen() {
   const insets = useSafeAreaInsets();
@@ -40,6 +44,7 @@ export default function TryOnScreen() {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
+  const [customItems, setCustomItems] = useState<CustomItem[]>([]);
 
   const pulseScale = useSharedValue(1);
   const dotOpacity1 = useSharedValue(0.3);
@@ -95,6 +100,21 @@ export default function TryOnScreen() {
     }
   };
 
+  const toggleCustomItem = (id: string) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(prev => prev.filter(i => i !== id));
+    } else if (selectedIds.length >= 5) {
+      toast.warning("You can select up to 5 items at once");
+    } else {
+      setSelectedIds(prev => [...prev, id]);
+    }
+  };
+
+  const removeCustomItem = (id: string) => {
+    setCustomItems(prev => prev.filter(ci => ci.id !== id));
+    setSelectedIds(prev => prev.filter(i => i !== id));
+  };
+
   const pickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
@@ -112,6 +132,37 @@ export default function TryOnScreen() {
       setUserPhoto(result.assets[0].uri);
       setUserPhotoBase64(result.assets[0].base64 ?? null);
       setGeneratedImage(null);
+    }
+  };
+
+  const pickCustomItem = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      toast.warning("Photo library access is required");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [3, 4],
+      quality: 0.8,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0]?.base64) {
+      const newItem: CustomItem = {
+        id: `custom_${Date.now()}`,
+        uri: result.assets[0].uri,
+        base64: result.assets[0].base64,
+      };
+      setCustomItems(prev => [...prev, newItem]);
+      // Auto-select the uploaded item
+      setSelectedIds(prev => {
+        if (prev.length >= 5) {
+          toast.warning("You can select up to 5 items at once");
+          return prev;
+        }
+        return [...prev, newItem.id];
+      });
     }
   };
 
@@ -141,7 +192,10 @@ export default function TryOnScreen() {
     }, 3000);
 
     try {
-      const response = await generateTryOn(userPhotoBase64, selectedIds);
+      const customPayload: CustomTryOnItem[] = customItems
+        .filter(ci => selectedIds.includes(ci.id))
+        .map(ci => ({ id: ci.id, base64: ci.base64, name: "Custom Item" }));
+      const response = await generateTryOn(userPhotoBase64, selectedIds, customPayload);
       clearInterval(msgInterval);
       setIsGenerating(false);
       router.push({
@@ -256,10 +310,38 @@ export default function TryOnScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.itemGrid}
         >
-          <Pressable style={[styles.itemCard, styles.uploadCard]} onPress={pickPhoto}>
+          <Pressable style={[styles.itemCard, styles.uploadCard]} onPress={pickCustomItem}>
             <Ionicons name="cloud-upload-outline" size={28} color={Colors.textSecondary} />
             <Text style={styles.uploadCardText}>UPLOAD</Text>
           </Pressable>
+
+          {customItems.map(item => {
+            const isSelected = selectedIds.includes(item.id);
+            return (
+              <Pressable
+                key={item.id}
+                style={[styles.itemCard, isSelected && styles.itemCardSelected]}
+                onPress={() => toggleCustomItem(item.id)}
+              >
+                <Image source={{ uri: item.uri }} style={styles.itemImg} />
+                <View style={styles.customBadge}>
+                  <Ionicons name="sparkles" size={8} color={Colors.white} />
+                </View>
+                {isSelected && (
+                  <View style={styles.checkBadge}>
+                    <Ionicons name="checkmark" size={14} color={Colors.primary} />
+                  </View>
+                )}
+                <Pressable
+                  style={styles.removeBadge}
+                  onPress={() => removeCustomItem(item.id)}
+                  hitSlop={8}
+                >
+                  <Ionicons name="close" size={10} color={Colors.white} />
+                </Pressable>
+              </Pressable>
+            );
+          })}
 
           {filteredItems.length === 0 ? (
             <View style={styles.emptyItems}>
@@ -399,6 +481,16 @@ const styles = StyleSheet.create({
   },
   uploadCard: { alignItems: "center", justifyContent: "center", gap: 4, backgroundColor: Colors.surface, borderStyle: "dashed" },
   uploadCardText: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: Colors.textSecondary, letterSpacing: 0.5 },
+  customBadge: {
+    position: "absolute", bottom: 6, left: 6,
+    width: 18, height: 18, borderRadius: 9,
+    backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center",
+  },
+  removeBadge: {
+    position: "absolute", top: 5, right: 5,
+    width: 18, height: 18, borderRadius: 9,
+    backgroundColor: "rgba(0,0,0,0.55)", alignItems: "center", justifyContent: "center",
+  },
   emptyItems: { alignItems: "center", justifyContent: "center", gap: 10, padding: 20 },
   emptyItemsText: { fontFamily: "Inter_500Medium", fontSize: 14, color: Colors.textSecondary },
   generateBtn: {
